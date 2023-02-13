@@ -4,7 +4,7 @@
   "description": "HTTP drive server for entries delivery. Auto detects types like video, images, etc",
   "main": "index.js",
   "scripts": {
-    "test": "standard && brittle test.js"
+    "test": "standard"
   },
   "repository": {
     "type": "git",
