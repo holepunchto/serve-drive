@@ -70,15 +70,15 @@ module.exports = async function serve (drive, opts = {}) {
 
 function listen (server, port, address) {
   return new Promise((resolve, reject) => {
-    socket.on('listening', done)
-    socket.on('error', done)
+    server.on('listening', done)
+    server.on('error', done)
 
     if (address) server.listen(port, address)
     else server.listen(port)
 
     function done (err) {
-      socket.off('listening', done)
-      socket.off('error', done)
+      server.off('listening', done)
+      server.off('error', done)
 
       if (err) reject(err)
       else resolve()
