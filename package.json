@@ -1,0 +1,27 @@
+{
+  "name": "serve-drive",
+  "version": "0.0.0",
+  "description": "HTTP drive server for entries delivery. Auto detects types like video, images, etc",
+  "main": "index.js",
+  "scripts": {
+    "test": "standard && brittle test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/holepunchto/serve-drive.git"
+  },
+  "author": "Lucas Barrena (LuKks)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/holepunchto/serve-drive/issues"
+  },
+  "homepage": "https://github.com/holepunchto/serve-drive",
+  "devDependencies": {
+    "brittle": "^3.1.3",
+    "standard": "^17.0.0"
+  },
+  "dependencies": {
+    "mime-types": "^2.1.35",
+    "range-parser": "^1.2.1"
+  }
+}
