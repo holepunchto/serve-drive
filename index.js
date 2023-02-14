@@ -26,9 +26,10 @@ module.exports = async function serve (drive, opts = {}) {
     } catch (e) {
       if (e.code === 'SNAPSHOT_NOT_AVAILABLE') {
         res.writeHead(404, 'Version not available').end()
-        return
+      } else {
+        res.writeHead(500, e.code || e.message).end()
       }
-      res.writeHead(500, e.code || e.message)
+      return
     }
 
     if (!entry || !entry.value.blob) {
