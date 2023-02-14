@@ -28,7 +28,7 @@ module.exports = async function serve (drive, opts = {}) {
         res.writeHead(404, 'Version not available').end()
         return
       }
-      throw e
+      res.writeHead(500, e.code || e.message)
     }
 
     if (!entry || !entry.value.blob) {
