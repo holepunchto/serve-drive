@@ -16,7 +16,7 @@ module.exports = async function serve (drive, opts = {}) {
     }
 
     const { pathname, searchParams } = new URL(req.url, 'http://localhost')
-    const version = searchParams.get('v')
+    const version = searchParams.get('checkout')
     const driveForReq = version ? drive.checkout(version) : drive
     const filename = decodeURI(pathname)
 

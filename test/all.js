@@ -52,13 +52,13 @@ test('version query param', async t => {
   t.is(nowResp.status, 200)
   t.is(nowResp.data, 'Else')
 
-  const oldResp = await axios.get(`http://localhost:${server.address().port}/Something?v=${origV}`)
+  const oldResp = await axios.get(`http://localhost:${server.address().port}/Something?checkout=${origV}`)
   t.is(oldResp.status, 200)
   t.is(oldResp.data, 'Here')
 
   // Future version
   await t.exception(
-    async () => axios.get(`http://localhost:${server.address().port}/Something?v=100`),
+    async () => axios.get(`http://localhost:${server.address().port}/Something?checkout=100`),
     /.*status code 404/
   )
 })
