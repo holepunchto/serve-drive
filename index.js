@@ -24,8 +24,11 @@ module.exports = async function serve (drive, opts = {}) {
     try {
       entry = await snapshot.entry(filename)
     } catch (e) {
-      res.writeHead(404, 'Version not availablle').end()
-      return
+      if (e.code === 'SNAPSHOT_NOT_AVAILABLE') {
+        res.writeHead(404, 'Version not available').end()
+        return
+      }
+      throw e
     }
 
     if (!entry || !entry.value.blob) {
