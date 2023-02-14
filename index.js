@@ -15,9 +15,18 @@ module.exports = async function serve (drive, opts = {}) {
       return
     }
 
-    const { pathname } = new URL(req.url, 'http://localhost')
+    const { pathname, searchParams } = new URL(req.url, 'http://localhost')
+    const version = searchParams.get('v')
+    const driveForReq = version ? drive.checkout(version) : drive
     const filename = decodeURI(pathname)
-    const entry = await drive.entry(filename)
+
+    let entry
+    try {
+      entry = await driveForReq.entry(filename)
+    } catch (e) {
+      res.writeHead(404, 'Version not availablle').end()
+      return
+    }
 
     if (!entry || !entry.value.blob) {
       res.writeHead(404).end()
@@ -47,11 +56,11 @@ module.exports = async function serve (drive, opts = {}) {
       res.setHeader('Content-Range', 'bytes ' + range.start + '-' + range.end + '/' + entry.value.blob.byteLength)
       res.setHeader('Content-Length', byteLength)
 
-      rs = drive.createReadStream(filename, { start: range.start, length: byteLength })
+      rs = driveForReq.createReadStream(filename, { start: range.start, length: byteLength })
     } else {
       res.setHeader('Content-Length', entry.value.blob.byteLength)
 
-      rs = drive.createReadStream(filename, { start: 0, length: entry.value.blob.byteLength })
+      rs = driveForReq.createReadStream(filename, { start: 0, length: entry.value.blob.byteLength })
     }
 
     rs.pipe(res, noop)

@@ -38,3 +38,27 @@ test('404 if file not found', async t => {
     /.*status code 404/
   )
 })
+
+test('version query param', async t => {
+  const { drive, server } = await setup(t)
+  await drive.put('Something', 'Here')
+  const origV = drive.version
+  t.is(origV, 2) // Sanity check
+
+  await drive.put('irrelevant', 'stuff')
+  await drive.put('Something', 'Else')
+
+  const nowResp = await axios.get(`http://localhost:${server.address().port}/Something`)
+  t.is(nowResp.status, 200)
+  t.is(nowResp.data, 'Else')
+
+  const oldResp = await axios.get(`http://localhost:${server.address().port}/Something?v=${origV}`)
+  t.is(oldResp.status, 200)
+  t.is(oldResp.data, 'Here')
+
+  // Future version
+  await t.exception(
+    async () => axios.get(`http://localhost:${server.address().port}/Something?v=100`),
+    /.*status code 404/
+  )
+})
