@@ -17,12 +17,12 @@ module.exports = async function serve (drive, opts = {}) {
 
     const { pathname, searchParams } = new URL(req.url, 'http://localhost')
     const version = searchParams.get('checkout')
-    const driveForReq = version ? drive.checkout(version) : drive
+    const snapshot = version ? drive.checkout(version) : drive
     const filename = decodeURI(pathname)
 
     let entry
     try {
-      entry = await driveForReq.entry(filename)
+      entry = await snapshot.entry(filename)
     } catch (e) {
       res.writeHead(404, 'Version not availablle').end()
       return
@@ -56,11 +56,11 @@ module.exports = async function serve (drive, opts = {}) {
       res.setHeader('Content-Range', 'bytes ' + range.start + '-' + range.end + '/' + entry.value.blob.byteLength)
       res.setHeader('Content-Length', byteLength)
 
-      rs = driveForReq.createReadStream(filename, { start: range.start, length: byteLength })
+      rs = snapshot.createReadStream(filename, { start: range.start, length: byteLength })
     } else {
       res.setHeader('Content-Length', entry.value.blob.byteLength)
 
-      rs = driveForReq.createReadStream(filename, { start: 0, length: entry.value.blob.byteLength })
+      rs = snapshot.createReadStream(filename, { start: 0, length: entry.value.blob.byteLength })
     }
 
     rs.pipe(res, noop)
