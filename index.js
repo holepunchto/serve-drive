@@ -24,11 +24,12 @@ module.exports = async function serve (drive, opts = {}) {
     try {
       entry = await snapshot.entry(filename)
     } catch (e) {
-      if (e.code === 'SNAPSHOT_NOT_AVAILABLE') {
-        res.writeHead(404, 'Version not available').end()
-      } else {
-        res.writeHead(500, e.code || e.message).end()
-      }
+      const msg = e.code || e.message
+
+      if (e.code === 'SNAPSHOT_NOT_AVAILABLE') res.writeHead(404, msg)
+      else res.writeHead(500, msg)
+
+      res.end()
       return
     }
 
