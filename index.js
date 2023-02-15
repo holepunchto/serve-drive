@@ -15,12 +15,26 @@ module.exports = async function serve (drive, opts = {}) {
       return
     }
 
-    const { pathname } = new URL(req.url, 'http://localhost')
+    const { pathname, searchParams } = new URL(req.url, 'http://localhost')
+    const version = searchParams.get('checkout')
+    const snapshot = version ? drive.checkout(version) : drive
     const filename = decodeURI(pathname)
-    const entry = await drive.entry(filename)
+
+    let entry
+    try {
+      entry = await snapshot.entry(filename)
+    } catch (e) {
+      const msg = e.code || e.message
+
+      if (e.code === 'SNAPSHOT_NOT_AVAILABLE') res.writeHead(404)
+      else res.writeHead(500)
+
+      res.end(msg)
+      return
+    }
 
     if (!entry || !entry.value.blob) {
-      res.writeHead(404).end()
+      res.writeHead(404).end('ENOENT')
       return
     }
 
@@ -47,11 +61,11 @@ module.exports = async function serve (drive, opts = {}) {
       res.setHeader('Content-Range', 'bytes ' + range.start + '-' + range.end + '/' + entry.value.blob.byteLength)
       res.setHeader('Content-Length', byteLength)
 
-      rs = drive.createReadStream(filename, { start: range.start, length: byteLength })
+      rs = snapshot.createReadStream(filename, { start: range.start, length: byteLength })
     } else {
       res.setHeader('Content-Length', entry.value.blob.byteLength)
 
-      rs = drive.createReadStream(filename, { start: 0, length: entry.value.blob.byteLength })
+      rs = snapshot.createReadStream(filename, { start: 0, length: entry.value.blob.byteLength })
     }
 
     rs.pipe(res, noop)
