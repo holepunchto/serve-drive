@@ -56,7 +56,7 @@ test('404 if file not found', async t => {
       `http://localhost:${server.address().port}/Nothing`, { validateStatus: null }
     )
     t.is(resp.status, 404)
-    t.is(resp.data, 'File not found')
+    t.is(resp.data, 'ENOENT')
   }
 })
 

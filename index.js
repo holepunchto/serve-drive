@@ -34,7 +34,7 @@ module.exports = async function serve (drive, opts = {}) {
     }
 
     if (!entry || !entry.value.blob) {
-      res.writeHead(404).end('File not found')
+      res.writeHead(404).end('ENOENT')
       return
     }
 
