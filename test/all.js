@@ -3,44 +3,64 @@ const test = require('brittle')
 const axios = require('axios')
 const ram = require('random-access-memory')
 const Corestore = require('corestore')
+const Localdrive = require('localdrive')
+const path = require('node:path')
+const os = require('node:os')
+const fs = require('fs/promises')
 
 const serveDrive = require('..')
 
-async function setup (t) {
-  const store = new Corestore(ram)
-  const drive = new Hyperdrive(store)
+async function getTempDir (t) {
+  const dir = path.join(os.tmpdir(), Math.random().toString().slice(2))
+
+  t.teardown(async () => {
+    await fs.rm(dir, { force: true, recursive: true })
+  })
+  return path.normalize(dir)
+}
+
+async function setup (t, { isHyper = true } = {}) {
+  const store = isHyper ? new Corestore(ram) : null
+  const drive = isHyper ? new Hyperdrive(store) : new Localdrive(await getTempDir(t))
 
   const server = await serveDrive(drive)
 
   t.teardown(() => {
     server.close()
-    store.close()
+    store?.close()
   })
 
   return { server, drive }
 }
 
 test('Can get existing file from drive', async t => {
-  const { drive, server } = await setup(t)
-  await drive.put('Something', 'Here')
+  t.plan(2 * 2)
 
-  const resp = await axios.get(`http://localhost:${server.address().port}/Something`)
+  for (const isHyper of [true, false]) {
+    const { drive, server } = await setup(t, { isHyper })
+    await drive.put('Something', 'Here')
 
-  t.is(resp.status, 200)
-  t.is(resp.data, 'Here')
+    const resp = await axios.get(`http://localhost:${server.address().port}/Something`)
+
+    t.is(resp.status, 200)
+    t.is(resp.data, 'Here')
+  }
 })
 
 test('404 if file not found', async t => {
-  const { server } = await setup(t)
+  t.plan(1 * 2)
 
-  await t.exception(
-    async () => axios.get(`http://localhost:${server.address().port}/Nothing`),
-    /.*status code 404/
-  )
+  for (const isHyper of [true, false]) {
+    const { server } = await setup(t, { isHyper })
+    await t.exception(
+      async () => axios.get(`http://localhost:${server.address().port}/Nothing`),
+      /.*status code 404/
+    )
+  }
 })
 
-test('version query param', async t => {
-  const { drive, server } = await setup(t)
+test('version query param (hyperdrive)', async t => {
+  const { drive, server } = await setup(t, { isHyper: true })
   await drive.put('Something', 'Here')
   const origV = drive.version
   t.is(origV, 2) // Sanity check
@@ -61,4 +81,23 @@ test('version query param', async t => {
     async () => axios.get(`http://localhost:${server.address().port}/Something?checkout=100`),
     /.*status code 404/
   )
+})
+
+test('version query param ignored for local drive', async t => {
+  const { drive, server } = await setup(t, { isHyper: false })
+  await drive.put('Something', 'Here')
+  await drive.put('irrelevant', 'stuff')
+  await drive.put('Something', 'Else')
+
+  const nowResp = await axios.get(`http://localhost:${server.address().port}/Something`)
+  t.is(nowResp.status, 200)
+  t.is(nowResp.data, 'Else')
+
+  const oldResp = await axios.get(`http://localhost:${server.address().port}/Something?checkout=2`)
+  t.is(oldResp.status, 200)
+  t.is(oldResp.data, 'Else')
+
+  const futureResp = await axios.get(`http://localhost:${server.address().port}/Something?checkout=100`)
+  t.is(futureResp.status, 200)
+  t.is(futureResp.data, 'Else')
 })
