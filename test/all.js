@@ -52,10 +52,10 @@ test('404 if file not found', async t => {
 
   for (const isHyper of [true, false]) {
     const { server } = await setup(t, { isHyper })
-    await t.exception(
-      async () => axios.get(`http://localhost:${server.address().port}/Nothing`),
-      /.*status code 404/
+    const resp = await axios.get(
+      `http://localhost:${server.address().port}/Nothing`, { validateStatus: null }
     )
+    t.is(resp.status, 404)
   }
 })
 
@@ -76,11 +76,10 @@ test('checkout query param (hyperdrive)', async t => {
   t.is(oldResp.status, 200)
   t.is(oldResp.data, 'Here')
 
-  // Future version
-  await t.exception(
-    async () => axios.get(`http://localhost:${server.address().port}/Something?checkout=100`),
-    /.*status code 404/
+  const futureResp = await axios.get(
+    `http://localhost:${server.address().port}/Something?checkout=100`, { validateStatus: null }
   )
+  t.is(futureResp.status, 404)
 })
 
 test('checkout query param ignored for local drive', async t => {
