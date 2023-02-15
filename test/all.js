@@ -59,7 +59,7 @@ test('404 if file not found', async t => {
   }
 })
 
-test('version query param (hyperdrive)', async t => {
+test('checkout query param (hyperdrive)', async t => {
   const { drive, server } = await setup(t, { isHyper: true })
   await drive.put('Something', 'Here')
   const origV = drive.version
@@ -83,7 +83,7 @@ test('version query param (hyperdrive)', async t => {
   )
 })
 
-test('version query param ignored for local drive', async t => {
+test('checkout query param ignored for local drive', async t => {
   const { drive, server } = await setup(t, { isHyper: false })
   await drive.put('Something', 'Here')
   await drive.put('irrelevant', 'stuff')
