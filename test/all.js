@@ -48,7 +48,7 @@ test('Can get existing file from drive', async t => {
 })
 
 test('404 if file not found', async t => {
-  t.plan(1 * 2)
+  t.plan(2 * 2)
 
   for (const isHyper of [true, false]) {
     const { server } = await setup(t, { isHyper })
@@ -56,6 +56,7 @@ test('404 if file not found', async t => {
       `http://localhost:${server.address().port}/Nothing`, { validateStatus: null }
     )
     t.is(resp.status, 404)
+    t.is(resp.data, 'File not found')
   }
 })
 
@@ -80,6 +81,7 @@ test('checkout query param (hyperdrive)', async t => {
     `http://localhost:${server.address().port}/Something?checkout=100`, { validateStatus: null }
   )
   t.is(futureResp.status, 404)
+  t.is(futureResp.data, 'SNAPSHOT_NOT_AVAILABLE')
 })
 
 test('checkout query param ignored for local drive', async t => {

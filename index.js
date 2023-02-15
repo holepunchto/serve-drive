@@ -26,15 +26,15 @@ module.exports = async function serve (drive, opts = {}) {
     } catch (e) {
       const msg = e.code || e.message
 
-      if (e.code === 'SNAPSHOT_NOT_AVAILABLE') res.writeHead(404, msg)
-      else res.writeHead(500, msg)
+      if (e.code === 'SNAPSHOT_NOT_AVAILABLE') res.writeHead(404)
+      else res.writeHead(500)
 
-      res.end()
+      res.end(msg)
       return
     }
 
     if (!entry || !entry.value.blob) {
-      res.writeHead(404).end()
+      res.writeHead(404).end('File not found')
       return
     }
 
