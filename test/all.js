@@ -1,37 +1,7 @@
-const Hyperdrive = require('hyperdrive')
 const test = require('brittle')
-const axios = require('axios')
-const ram = require('random-access-memory')
-const Corestore = require('corestore')
-const Localdrive = require('localdrive')
-const path = require('node:path')
-const os = require('node:os')
-const fs = require('fs/promises')
-
 const serveDrive = require('..')
-
-async function getTempDir (t) {
-  const dir = path.join(os.tmpdir(), Math.random().toString().slice(2))
-
-  t.teardown(async () => {
-    await fs.rm(dir, { force: true, recursive: true })
-  })
-  return path.normalize(dir)
-}
-
-async function setup (t, { isHyper = true } = {}) {
-  const store = isHyper ? new Corestore(ram) : null
-  const drive = isHyper ? new Hyperdrive(store) : new Localdrive(await getTempDir(t))
-
-  const server = await serveDrive(drive)
-
-  t.teardown(() => {
-    server.close()
-    store?.close()
-  })
-
-  return { server, drive }
-}
+const { setup, request, tmpHyperdrive, tmpLocaldrive } = require('./helpers/index.js')
+const axios = require('axios')
 
 test('Can get existing file from drive', async t => {
   t.plan(2 * 2)
@@ -101,4 +71,46 @@ test('checkout query param ignored for local drive', async t => {
   const futureResp = await axios.get(`http://localhost:${server.address().port}/Something?checkout=100`)
   t.is(futureResp.status, 200)
   t.is(futureResp.data, 'Else')
+})
+
+test('multiple drives', async t => {
+  t.plan(4)
+
+  const localdrive = tmpLocaldrive(t)
+  const hyperdrive = tmpHyperdrive(t)
+
+  await localdrive.put('/file.txt', 'a')
+  await hyperdrive.put('/file.txt', 'b')
+
+  const drives = new Map()
+  drives.set(hyperdrive.key.toString('hex'), hyperdrive)
+  drives.set('custom-alias', localdrive)
+
+  const server = await serveDrive(drives)
+  t.teardown(() => server.close())
+
+  const a = await request(server, '/file.txt?drive=custom-alias')
+  t.is(a.status, 200)
+  t.is(a.data, 'a')
+
+  const b = await request(server, '/file.txt?drive=' + hyperdrive.key.toString('hex'))
+  t.is(b.status, 200)
+  t.is(b.data, 'b')
+})
+
+test('default drive when multiple drives', async t => {
+  t.plan(2)
+
+  const localdrive = tmpLocaldrive(t)
+  await localdrive.put('/file.txt', 'a')
+
+  const drives = new Map()
+  drives.set('custom-alias', localdrive)
+
+  const server = await serveDrive(drives)
+  t.teardown(() => server.close())
+
+  const a = await request(server, '/file.txt')
+  t.is(a.status, 200)
+  t.is(a.data, 'a')
 })
