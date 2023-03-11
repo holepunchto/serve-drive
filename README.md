@@ -49,8 +49,10 @@ console.log('Listening on http://localhost:' + server.address().port)
 
 Creates a HTTP server that serves entries from a `Hyperdrive` or `Localdrive`.
 
-It also accepts a `Map` of multiple drives. You can keep adding drives to the `Map` while server is running.\
-Use a query param to select which one i.e. `/filename?drive=<map-key>`
+It also accepts a `Map` of multiple drives.\
+You can keep adding drives to the `Map` while server is running.\
+Set a `null` key on the `Map` for a default drive.\
+Use a query param to select which one i.e. `/filename?drive=<map-key>`.
 
 Available `options`:
 ```js
