@@ -40,7 +40,7 @@ drives.set(drive3.key.toString('hex'), drive3) // Or z32.encode(drive3.key)
 const server = await serve(drives)
 console.log('Listening on http://localhost:' + server.address().port)
 
-// Try visiting http://localhost:7000/index.html?drive=two
+// Try visiting http://localhost:7000/index.html?drive=custom-alias
 ```
 
 ## API
