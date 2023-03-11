@@ -33,10 +33,9 @@ module.exports = async function serve (drives, opts = {}) {
 
     const version = searchParams.get('checkout')
     const snapshot = version ? drive.checkout(version) : drive
-
     const filename = decodeURI(pathname)
-    let entry
 
+    let entry
     try {
       entry = await snapshot.entry(filename)
     } catch (e) {
