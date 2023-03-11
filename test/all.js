@@ -74,38 +74,20 @@ test('checkout query param ignored for local drive', async t => {
 })
 
 test('multiple drives', async t => {
-  t.plan(4)
+  t.plan(6)
 
+  const defaultDrive = tmpHyperdrive(t)
   const localdrive = tmpLocaldrive(t)
   const hyperdrive = tmpHyperdrive(t)
 
-  await localdrive.put('/file.txt', 'a')
-  await hyperdrive.put('/file.txt', 'b')
+  await defaultDrive.put('/file.txt', 'a')
+  await localdrive.put('/file.txt', 'b')
+  await hyperdrive.put('/file.txt', 'c')
 
   const drives = new Map()
+  drives.set(null, defaultDrive)
+  drives.set('custom-alias', localdrive)
   drives.set(hyperdrive.key.toString('hex'), hyperdrive)
-  drives.set('custom-alias', localdrive)
-
-  const server = await serveDrive(drives)
-  t.teardown(() => server.close())
-
-  const a = await request(server, '/file.txt?drive=custom-alias')
-  t.is(a.status, 200)
-  t.is(a.data, 'a')
-
-  const b = await request(server, '/file.txt?drive=' + hyperdrive.key.toString('hex'))
-  t.is(b.status, 200)
-  t.is(b.data, 'b')
-})
-
-test('default drive when multiple drives', async t => {
-  t.plan(2)
-
-  const localdrive = tmpLocaldrive(t)
-  await localdrive.put('/file.txt', 'a')
-
-  const drives = new Map()
-  drives.set('custom-alias', localdrive)
 
   const server = await serveDrive(drives)
   t.teardown(() => server.close())
@@ -113,4 +95,12 @@ test('default drive when multiple drives', async t => {
   const a = await request(server, '/file.txt')
   t.is(a.status, 200)
   t.is(a.data, 'a')
+
+  const b = await request(server, '/file.txt?drive=custom-alias')
+  t.is(b.status, 200)
+  t.is(b.data, 'b')
+
+  const c = await request(server, '/file.txt?drive=' + hyperdrive.key.toString('hex'))
+  t.is(c.status, 200)
+  t.is(c.data, 'c')
 })

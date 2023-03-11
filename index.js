@@ -3,13 +3,10 @@ const rangeParser = require('range-parser')
 const mime = require('mime-types')
 
 module.exports = async function serve (drives, opts = {}) {
-  let defaultDrive = null
-
-  if (drives instanceof Map) {
-    defaultDrive = drives.entries().next().value[1]
-  } else {
-    defaultDrive = drives
+  if (!(drives instanceof Map)) {
+    const drive = drives
     drives = new Map()
+    drives.set(null, drive)
   }
 
   const port = typeof opts.port !== 'undefined' ? Number(opts.port) : 7000
@@ -26,8 +23,8 @@ module.exports = async function serve (drives, opts = {}) {
 
     const { pathname, searchParams } = new URL(req.url, 'http://localhost')
 
-    const id = searchParams.get('drive')
-    const drive = id === null ? defaultDrive : drives.get(id)
+    const id = searchParams.get('drive') // String or null
+    const drive = drives.get(id)
 
     const version = searchParams.get('checkout')
     const snapshot = version ? drive.checkout(version) : drive

@@ -19,7 +19,7 @@ await drive.put('/index.html', Buffer.from('hi'))
 const server = await serve(drive)
 console.log('Listening on http://localhost:' + server.address().port)
 
-// Try visit http://localhost:7000/index.html
+// Try visiting http://localhost:7000/index.html
 ```
 
 Multiple drives:
@@ -33,6 +33,8 @@ await drive2.put('/index.html', Buffer.from('b'))
 const drives = new Map()
 drives.set('one', drive1) // For Hyperdrive: drive.key.toString('hex') or z32.encode(drive.key)
 drives.set('two', drive2)
+drives.set(null, drive1) // Default drive
+drives.set('custom-alias', drive2)
 
 const server = await serve(drives)
 console.log('Listening on http://localhost:' + server.address().port)
