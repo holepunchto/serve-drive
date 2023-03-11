@@ -31,7 +31,7 @@ async function setup (t, { isHyper = true } = {}) {
 }
 
 async function request (server, uri) {
-  return axios.get('http://localhost:' + server.address().port + uri)
+  return axios.get('http://localhost:' + server.address().port + uri, { validateStatus: false })
 }
 
 function tmpHyperdrive (t) {

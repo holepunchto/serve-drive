@@ -74,7 +74,7 @@ test('checkout query param ignored for local drive', async t => {
 })
 
 test('multiple drives', async t => {
-  t.plan(6)
+  t.plan(8)
 
   const defaultDrive = tmpHyperdrive(t)
   const localdrive = tmpLocaldrive(t)
@@ -103,4 +103,8 @@ test('multiple drives', async t => {
   const c = await request(server, '/file.txt?drive=' + hyperdrive.key.toString('hex'))
   t.is(c.status, 200)
   t.is(c.data, 'c')
+
+  const d = await request(server, '/file.txt?drive=not-exists')
+  t.is(d.status, 404)
+  t.is(d.data, 'DRIVE_NOT_FOUND')
 })
