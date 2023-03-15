@@ -2,7 +2,13 @@ const http = require('http')
 const rangeParser = require('range-parser')
 const mime = require('mime-types')
 
-module.exports = async function serve (drive, opts = {}) {
+module.exports = async function serve (drives, opts = {}) {
+  if (!(drives instanceof Map)) {
+    const drive = drives
+    drives = new Map()
+    drives.set(null, drive)
+  }
+
   const port = typeof opts.port !== 'undefined' ? Number(opts.port) : 7000
   const host = typeof opts.host !== 'undefined' ? opts.host : null
   const anyPort = opts.anyPort !== false
@@ -16,6 +22,15 @@ module.exports = async function serve (drive, opts = {}) {
     }
 
     const { pathname, searchParams } = new URL(req.url, 'http://localhost')
+
+    const id = searchParams.get('drive') // String or null
+    const drive = drives.get(id)
+
+    if (!drive) {
+      res.writeHead(404).end('DRIVE_NOT_FOUND')
+      return
+    }
+
     const version = searchParams.get('checkout')
     const snapshot = version ? drive.checkout(version) : drive
     const filename = decodeURI(pathname)
