@@ -78,4 +78,5 @@ goodbye(() => close())
 ```
 
 ## License
-MIT
+
+Apache-2.0
