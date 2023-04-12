@@ -46,6 +46,7 @@ module.exports = class ServeDrive extends ReadyResource {
   add (drive, opts = {}) {
     if (opts.alias && opts.default) throw new Error('Can not use both alias and default')
     if (!drive.opened && drive.key === null) throw new Error('Drive is not ready')
+    if (!opts.default && !opts.alias && !drive.key) throw new Error('Localdrive needs an alias or to be the default')
 
     if (opts.default) this.drives.set(null, drive)
     if (opts.alias) this.drives.set(opts.alias, drive)
