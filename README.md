@@ -75,7 +75,7 @@ const close = graceful(server)
 const serve = new ServeDrive({ server })
 
 // Add drives as usual:
-serve.add(..., { default: true })
+serve.add(drive, { default: true })
 
 goodbye(() => close())
 ```
