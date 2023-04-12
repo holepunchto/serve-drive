@@ -93,7 +93,7 @@ Available `options`:
 
 #### `serve.delete(drive, [options])`
 
-Add a drive to the drives map for serving requests.
+Delete a drive from the drives map to stop serving requests.
 
 Available `options`:
 ```js
