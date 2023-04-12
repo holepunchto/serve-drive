@@ -73,7 +73,9 @@ const goodbye = require('graceful-goodbye')
 const server = http.createServer()
 const close = graceful(server)
 const serve = new ServeDrive({ server })
-// serve.add(drive)
+
+// Add drives as usual:
+serve.add(..., { default: true })
 
 goodbye(() => close())
 ```

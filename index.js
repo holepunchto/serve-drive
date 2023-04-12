@@ -32,9 +32,6 @@ module.exports = class ServeDrive extends ReadyResource {
   }
 
   async _close () {
-    if (this.closed) return
-    this.closed = true
-
     if (!this.opened) await this._opening.catch(safetyCatch)
 
     if (this.server.listening) {
