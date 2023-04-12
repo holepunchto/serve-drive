@@ -1,21 +1,71 @@
 const http = require('http')
 const rangeParser = require('range-parser')
 const mime = require('mime-types')
+const ReadyResource = require('ready-resource')
+const z32 = require('z32')
+const safetyCatch = require('safety-catch')
 
-module.exports = async function serve (drives, opts = {}) {
-  if (!(drives instanceof Map)) {
-    const drive = drives
-    drives = new Map()
-    drives.set(null, drive)
+module.exports = class ServeDrive extends ReadyResource {
+  constructor (opts = {}) {
+    super()
+
+    this.drives = new Map()
+
+    this.port = typeof opts.port !== 'undefined' ? Number(opts.port) : 7000
+    this.host = typeof opts.host !== 'undefined' ? opts.host : null
+    this.anyPort = opts.anyPort !== false
+
+    this.server = opts.server || http.createServer()
+    this.server.on('request', this._onrequest.bind(this))
   }
 
-  const port = typeof opts.port !== 'undefined' ? Number(opts.port) : 7000
-  const host = typeof opts.host !== 'undefined' ? opts.host : null
-  const anyPort = opts.anyPort !== false
+  async _open () {
+    await Promise.resolve() // Wait a tick, so you don't rely on server.address() being sync sometimes
 
-  const server = opts.server || http.createServer()
+    try {
+      await listen(this.server, this.port, this.host)
+    } catch (err) {
+      if (!this.anyPort) throw err
+      if (err.code !== 'EADDRINUSE') throw err
+      await listen(this.server, 0, this.host)
+    }
+  }
 
-  server.on('request', async function (req, res) {
+  async _close () {
+    if (!this.opened) await this._opening.catch(safetyCatch)
+
+    if (this.server.listening) {
+      await new Promise(resolve => this.server.close(() => resolve()))
+    }
+  }
+
+  address () {
+    return this.server.address()
+  }
+
+  add (drive, opts = {}) {
+    if (opts.alias && opts.default) throw new Error('Can not use both alias and default')
+    if (!drive.opened && drive.key === null) throw new Error('Drive is not ready')
+    if (!opts.default && !opts.alias && !drive.key) throw new Error('Localdrive needs an alias or to be the default')
+
+    if (opts.default) this.drives.set(null, drive)
+    if (opts.alias) this.drives.set(opts.alias, drive)
+
+    if (drive.key) this.drives.set(z32.encode(drive.key), drive)
+  }
+
+  delete (drive, opts = {}) {
+    if (opts.alias && opts.default) throw new Error('Can not use both alias and default')
+    if (!drive.opened && drive.key === null) throw new Error('Drive is not ready')
+    if (!opts.default && !opts.alias && !drive.key) throw new Error('Localdrive needs an alias or to be the default')
+
+    if (opts.default) this.drives.delete(null)
+    if (opts.alias) this.drives.delete(opts.alias)
+
+    if (drive.key) this.drives.delete(z32.encode(drive.key))
+  }
+
+  async _onrequest (req, res) {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.writeHead(400).end()
       return
@@ -24,7 +74,7 @@ module.exports = async function serve (drives, opts = {}) {
     const { pathname, searchParams } = new URL(req.url, 'http://localhost')
 
     const id = searchParams.get('drive') // String or null
-    const drive = drives.get(id)
+    const drive = this.drives.get(id)
 
     if (!drive) {
       res.writeHead(404).end('DRIVE_NOT_FOUND')
@@ -83,18 +133,8 @@ module.exports = async function serve (drives, opts = {}) {
       rs = snapshot.createReadStream(filename, { start: 0, length: entry.value.blob.byteLength })
     }
 
-    rs.pipe(res, noop)
-  })
-
-  try {
-    await listen(server, port, host)
-  } catch (err) {
-    if (!anyPort) throw err
-    if (err.code !== 'EADDRINUSE') throw err
-    await listen(server, 0, host)
+    rs.pipe(res, safetyCatch)
   }
-
-  return server
 }
 
 function listen (server, port, address) {
@@ -114,5 +154,3 @@ function listen (server, port, address) {
     }
   })
 }
-
-function noop () {}

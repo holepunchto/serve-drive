@@ -10,14 +10,16 @@ npm i serve-drive
 
 Single drive:
 ```js
-const serve = require('serve-drive')
+const ServeDrive = require('serve-drive')
 const Localdrive = require('localdrive')
 
 const drive = new Localdrive('./my-folder')
 await drive.put('/index.html', Buffer.from('hi'))
 
-const server = await serve(drive)
-console.log('Listening on http://localhost:' + server.address().port)
+const serve = new ServeDrive()
+serve.add(drive, { default: true })
+await serve.ready()
+console.log('Listening on http://localhost:' + serve.address().port)
 
 // Try visiting http://localhost:7000/index.html
 ```
@@ -32,27 +34,25 @@ await drive1.put('/index.html', Buffer.from('a'))
 await drive2.put('/index.html', Buffer.from('b'))
 await drive3.put('/index.html', Buffer.from('c'))
 
-const drives = new Map()
-drives.set(null, drive1) // Default drive
-drives.set('custom-alias', drive2)
-drives.set(drive3.key.toString('hex'), drive3) // Or z32.encode(drive3.key)
+const serve = new ServeDrive()
 
-const server = await serve(drives)
-console.log('Listening on http://localhost:' + server.address().port)
+serve.add(drive1, { default: true })
+serve.add(drive2, { alias: 'custom-alias' })
+serve.add(drive3, { alias: drive3.key.toString('hex') })
+
+await serve.ready()
+console.log('Listening on http://localhost:' + serve.address().port)
 
 // Try visiting http://localhost:7000/index.html?drive=custom-alias
 ```
 
 ## API
 
-#### `const server = await serve(drive, [options])`
+#### `const serve = new ServeDrive([options])`
 
 Creates a HTTP server that serves entries from a `Hyperdrive` or `Localdrive`.
 
-It also accepts a `Map` of multiple drives.\
-You can keep adding drives to the `Map` while the server is running.\
-Set a `null` key on the `Map` for a default drive.\
-Use a query param to select which one i.e. `/filename?drive=<map-key>`.
+Use a query param to select which one i.e. `/filename?drive=<id-or-alias>`.
 
 Available `options`:
 ```js
@@ -72,9 +72,38 @@ const goodbye = require('graceful-goodbye')
 
 const server = http.createServer()
 const close = graceful(server)
-await serve(drive, { server })
+const serve = new ServeDrive({ server })
+
+const drive = new Localdrive('./my-folder')
+serve.add(drive, { default: true })
 
 goodbye(() => close())
+```
+
+#### `serve.add(drive, [options])`
+
+Add a drive to the server for serving requests.
+
+Available `options`:
+```js
+{
+  alias: '', // By default: z32 encoding of drive.key
+  default: false
+}
+```
+
+It always adds the drive using z32 encoding as id, even if you use `alias` which is just an extra name.
+
+#### `serve.delete(drive, [options])`
+
+Remove a drive from the server to stop serving requests.
+
+Available `options`:
+```js
+{
+  alias: '', // By default: z32 encoding of drive.key
+  default: false
+}
 ```
 
 ## License

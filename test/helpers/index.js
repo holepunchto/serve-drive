@@ -6,32 +6,24 @@ const Corestore = require('corestore')
 const Hyperdrive = require('hyperdrive')
 const Localdrive = require('localdrive')
 const axios = require('axios')
-const serveDrive = require('../../index.js')
+const ServeDrive = require('../../index.js')
 
 module.exports = {
-  setup,
   request,
+  tmpServe,
   tmpHyperdrive,
   tmpLocaldrive,
   createTmpDir
 }
 
-async function setup (t, { isHyper = true } = {}) {
-  const store = isHyper ? new Corestore(RAM) : null
-  const drive = isHyper ? new Hyperdrive(store) : new Localdrive(createTmpDir(t))
-
-  const server = await serveDrive(drive)
-
-  t.teardown(() => {
-    server.close()
-    store?.close()
-  })
-
-  return { server, drive }
+async function request (serve, uri) {
+  return axios.get('http://localhost:' + serve.address().port + uri, { validateStatus: false })
 }
 
-async function request (server, uri) {
-  return axios.get('http://localhost:' + server.address().port + uri, { validateStatus: false })
+function tmpServe (t) {
+  const serve = new ServeDrive()
+  t.teardown(() => serve.close())
+  return serve
 }
 
 function tmpHyperdrive (t) {
