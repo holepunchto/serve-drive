@@ -86,7 +86,19 @@ Add a drive to the drives map for serving requests.
 Available `options`:
 ```js
 {
-  alias: '', // By default it uses z32 encoding on the drive.key
+  alias: '', // By default: z32 encoding of drive.key
+  default: false
+}
+```
+
+#### `serve.delete(drive, [options])`
+
+Add a drive to the drives map for serving requests.
+
+Available `options`:
+```js
+{
+  alias: '', // By default: z32 encoding of drive.key
   default: false
 }
 ```
