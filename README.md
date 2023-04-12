@@ -74,7 +74,7 @@ const server = http.createServer()
 const close = graceful(server)
 const serve = new ServeDrive({ server })
 
-// Add drives as usual:
+const drive = new Localdrive('./my-folder')
 serve.add(drive, { default: true })
 
 goodbye(() => close())
