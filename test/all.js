@@ -1,19 +1,22 @@
 const test = require('brittle')
 const ServeDrive = require('..')
-const { setup, request, tmpHyperdrive, tmpLocaldrive } = require('./helpers/index.js')
+const { request, tmpServe, tmpHyperdrive, tmpLocaldrive } = require('./helpers/index.js')
 const axios = require('axios')
 
 test('Can get existing file from drive', async t => {
   t.plan(2 * 2)
 
   for (const isHyper of [true, false]) {
-    const { drive, serve } = await setup(t, { isHyper })
+    const drive = isHyper ? tmpHyperdrive(t) : tmpLocaldrive(t)
     await drive.put('Something', 'Here')
 
-    const resp = await axios.get(`http://localhost:${serve.address().port}/Something`)
+    const serve = tmpServe(t)
+    serve.add(drive, { default: true })
+    await serve.ready()
 
-    t.is(resp.status, 200)
-    t.is(resp.data, 'Here')
+    const res = await request(serve, '/Something')
+    t.is(res.status, 200)
+    t.is(res.data, 'Here')
   }
 })
 
@@ -21,18 +24,27 @@ test('404 if file not found', async t => {
   t.plan(2 * 2)
 
   for (const isHyper of [true, false]) {
-    const { serve } = await setup(t, { isHyper })
-    const resp = await axios.get(
-      `http://localhost:${serve.address().port}/Nothing`, { validateStatus: null }
-    )
-    t.is(resp.status, 404)
-    t.is(resp.data, 'ENOENT')
+    const drive = isHyper ? tmpHyperdrive(t) : tmpLocaldrive(t)
+    await drive.ready()
+
+    const serve = tmpServe(t)
+    serve.add(drive, { default: true })
+    await serve.ready()
+
+    const res = await request(serve, '/Nothing')
+    t.is(res.status, 404)
+    t.is(res.data, 'ENOENT')
   }
 })
 
 test('checkout query param (hyperdrive)', async t => {
-  const { drive, serve } = await setup(t, { isHyper: true })
+  const drive = tmpHyperdrive(t)
   await drive.put('Something', 'Here')
+
+  const serve = tmpServe(t)
+  serve.add(drive, { default: true })
+  await serve.ready()
+
   const origV = drive.version
   t.is(origV, 2) // Sanity check
 
@@ -55,10 +67,14 @@ test('checkout query param (hyperdrive)', async t => {
 })
 
 test('checkout query param ignored for local drive', async t => {
-  const { drive, serve } = await setup(t, { isHyper: false })
+  const drive = tmpLocaldrive(t)
   await drive.put('Something', 'Here')
   await drive.put('irrelevant', 'stuff')
   await drive.put('Something', 'Else')
+
+  const serve = tmpServe(t)
+  serve.add(drive, { default: true })
+  await serve.ready()
 
   const nowResp = await axios.get(`http://localhost:${serve.address().port}/Something`)
   t.is(nowResp.status, 200)
@@ -84,12 +100,12 @@ test('multiple drives', async t => {
   await localdrive.put('/file.txt', 'b')
   await hyperdrive.put('/file.txt', 'c')
 
-  const drives = new Map()
-  drives.set(null, defaultDrive)
-  drives.set('custom-alias', localdrive)
-  drives.set(hyperdrive.key.toString('hex'), hyperdrive)
+  const serve = new ServeDrive()
 
-  const serve = new ServeDrive(drives)
+  serve.add(defaultDrive, { default: true })
+  serve.add(localdrive, { alias: 'custom-alias' })
+  serve.add(hyperdrive, { alias: hyperdrive.key.toString('hex') })
+
   t.teardown(() => serve.close())
   await serve.ready()
 

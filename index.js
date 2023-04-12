@@ -1,18 +1,15 @@
 const http = require('http')
 const rangeParser = require('range-parser')
 const mime = require('mime-types')
+const ReadyResource = require('ready-resource')
 const z32 = require('z32')
 const safetyCatch = require('safety-catch')
 
-module.exports = class ServeDrive {
-  constructor (drives, opts = {}) {
-    if (!(drives instanceof Map)) {
-      const drive = drives
-      drives = new Map()
-      drives.set(null, drive)
-    }
+module.exports = class ServeDrive extends ReadyResource {
+  constructor (opts = {}) {
+    super()
 
-    this.drives = drives
+    this.drives = new Map()
 
     this.port = typeof opts.port !== 'undefined' ? Number(opts.port) : 7000
     this.host = typeof opts.host !== 'undefined' ? opts.host : null
@@ -20,17 +17,11 @@ module.exports = class ServeDrive {
 
     this.server = opts.server || http.createServer()
     this.server.on('request', this._onrequest.bind(this))
-
-    this._closing = null
-    this._opening = this._ready()
-    this._opening.catch(safetyCatch)
   }
 
-  ready () {
-    return this._opening
-  }
+  async _open () {
+    await Promise.resolve() // Wait a tick, so you don't rely on server.address() being sync sometimes
 
-  async _ready () {
     try {
       await listen(this.server, this.port, this.host)
     } catch (err) {
@@ -38,14 +29,6 @@ module.exports = class ServeDrive {
       if (err.code !== 'EADDRINUSE') throw err
       await listen(this.server, 0, this.host)
     }
-
-    this.opened = true
-  }
-
-  async close () {
-    if (this._closing) return this._closing
-    this._closing = this._close()
-    return this._closing
   }
 
   async _close () {
@@ -65,20 +48,22 @@ module.exports = class ServeDrive {
 
   add (drive, opts = {}) {
     if (opts.alias && opts.default) throw new Error('Can not use both alias and default')
+    if (!drive.opened && drive.key === null) throw new Error('Drive is not ready')
 
     if (opts.default) this.drives.set(null, drive)
     if (opts.alias) this.drives.set(opts.alias, drive)
 
-    this.drives.set(z32.encode(drive.key), drive)
+    if (drive.key) this.drives.set(z32.encode(drive.key), drive)
   }
 
   delete (drive, opts = {}) {
     if (opts.alias && opts.default) throw new Error('Can not use both alias and default')
+    if (!drive.opened && drive.key === null) throw new Error('Drive is not ready')
 
     if (opts.default) this.drives.delete(null)
     if (opts.alias) this.drives.delete(opts.alias)
 
-    this.drives.delete(z32.encode(drive.key))
+    if (drive.key) this.drives.delete(z32.encode(drive.key))
   }
 
   async _onrequest (req, res) {
