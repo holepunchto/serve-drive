@@ -66,15 +66,19 @@ module.exports = class ServeDrive {
   add (drive, opts = {}) {
     if (opts.alias && opts.default) throw new Error('Can not use both alias and default')
 
-    const id = opts.default ? null : (opts.alias || z32.encode(drive.key))
-    this.drives.set(id, drive)
+    if (opts.default) this.drives.set(null, drive)
+    if (opts.alias) this.drives.set(opts.alias, drive)
+
+    this.drives.set(z32.encode(drive.key), drive)
   }
 
   delete (drive, opts = {}) {
     if (opts.alias && opts.default) throw new Error('Can not use both alias and default')
 
-    const id = opts.default ? null : (opts.alias || z32.encode(drive.key))
-    this.drives.delete(id)
+    if (opts.default) this.drives.delete(null)
+    if (opts.alias) this.drives.delete(opts.alias)
+
+    this.drives.delete(z32.encode(drive.key))
   }
 
   async _onrequest (req, res) {
