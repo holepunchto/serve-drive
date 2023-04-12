@@ -1,21 +1,79 @@
 const http = require('http')
 const rangeParser = require('range-parser')
 const mime = require('mime-types')
+const z32 = require('z32')
+const safetyCatch = require('safety-catch')
 
-module.exports = async function serve (drives, opts = {}) {
-  if (!(drives instanceof Map)) {
-    const drive = drives
-    drives = new Map()
-    drives.set(null, drive)
+module.exports = class ServeDrive {
+  constructor (drives, opts = {}) {
+    if (!(drives instanceof Map)) {
+      const drive = drives
+      drives = new Map()
+      drives.set(null, drive)
+    }
+
+    this.drives = drives
+
+    this.port = typeof opts.port !== 'undefined' ? Number(opts.port) : 7000
+    this.host = typeof opts.host !== 'undefined' ? opts.host : null
+    this.anyPort = opts.anyPort !== false
+
+    this.server = opts.server || http.createServer()
+    this.server.on('request', this._onrequest.bind(this))
+
+    this._closing = null
+    this._opening = this._ready()
+    this._opening.catch(safetyCatch)
   }
 
-  const port = typeof opts.port !== 'undefined' ? Number(opts.port) : 7000
-  const host = typeof opts.host !== 'undefined' ? opts.host : null
-  const anyPort = opts.anyPort !== false
+  ready () {
+    return this._opening
+  }
 
-  const server = opts.server || http.createServer()
+  async _ready () {
+    try {
+      await listen(this.server, this.port, this.host)
+    } catch (err) {
+      if (!this.anyPort) throw err
+      if (err.code !== 'EADDRINUSE') throw err
+      await listen(this.server, 0, this.host)
+    }
 
-  server.on('request', async function (req, res) {
+    this.opened = true
+  }
+
+  async close () {
+    if (this._closing) return this._closing
+    this._closing = this._close()
+    return this._closing
+  }
+
+  async _close () {
+    if (this.closed) return
+    this.closed = true
+
+    if (!this.opened) await this._opening.catch(safetyCatch)
+
+    if (this.server.listening) {
+      await new Promise(resolve => this.server.close(() => resolve()))
+    }
+  }
+
+  address () {
+    return this.server.address()
+  }
+
+  add (drive, opts) {
+    const id = opts && opts.default ? null : z32.encode(drive.key)
+    this.drives.set(id, drive)
+  }
+
+  delete (drive, opts) {
+    const id = opts && opts.default ? null : z32.encode(drive.key)
+    this.drives.delete(id)
+  }
+
+  async _onrequest (req, res) {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.writeHead(400).end()
       return
@@ -24,7 +82,7 @@ module.exports = async function serve (drives, opts = {}) {
     const { pathname, searchParams } = new URL(req.url, 'http://localhost')
 
     const id = searchParams.get('drive') // String or null
-    const drive = drives.get(id)
+    const drive = this.drives.get(id)
 
     if (!drive) {
       res.writeHead(404).end('DRIVE_NOT_FOUND')
@@ -83,18 +141,8 @@ module.exports = async function serve (drives, opts = {}) {
       rs = snapshot.createReadStream(filename, { start: 0, length: entry.value.blob.byteLength })
     }
 
-    rs.pipe(res, noop)
-  })
-
-  try {
-    await listen(server, port, host)
-  } catch (err) {
-    if (!anyPort) throw err
-    if (err.code !== 'EADDRINUSE') throw err
-    await listen(server, 0, host)
+    rs.pipe(res, safetyCatch)
   }
-
-  return server
 }
 
 function listen (server, port, address) {
@@ -114,5 +162,3 @@ function listen (server, port, address) {
     }
   })
 }
-
-function noop () {}

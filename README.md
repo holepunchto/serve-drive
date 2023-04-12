@@ -10,14 +10,15 @@ npm i serve-drive
 
 Single drive:
 ```js
-const serve = require('serve-drive')
+const ServeDrive = require('serve-drive')
 const Localdrive = require('localdrive')
 
 const drive = new Localdrive('./my-folder')
 await drive.put('/index.html', Buffer.from('hi'))
 
-const server = await serve(drive)
-console.log('Listening on http://localhost:' + server.address().port)
+const serve = new ServeDrive(drive)
+await serve.ready()
+console.log('Listening on http://localhost:' + serve.address().port)
 
 // Try visiting http://localhost:7000/index.html
 ```
@@ -37,15 +38,16 @@ drives.set(null, drive1) // Default drive
 drives.set('custom-alias', drive2)
 drives.set(drive3.key.toString('hex'), drive3) // Or z32.encode(drive3.key)
 
-const server = await serve(drives)
-console.log('Listening on http://localhost:' + server.address().port)
+const serve = new ServeDrive(drives)
+await serve.ready()
+console.log('Listening on http://localhost:' + serve.address().port)
 
 // Try visiting http://localhost:7000/index.html?drive=custom-alias
 ```
 
 ## API
 
-#### `const server = await serve(drive, [options])`
+#### `const serve = new ServeDrive(drive, [options])`
 
 Creates a HTTP server that serves entries from a `Hyperdrive` or `Localdrive`.
 
@@ -72,9 +74,21 @@ const goodbye = require('graceful-goodbye')
 
 const server = http.createServer()
 const close = graceful(server)
-await serve(drive, { server })
+const serve = new ServeDrive(drive, { server })
 
 goodbye(() => close())
+```
+
+#### `serve.add(drive, [options])`
+
+Add a drive to the drives map for serving requests.
+
+Available `options`:
+```js
+{
+  alias: '', // By default it uses z32 encoding on the drive.key
+  default: false
+}
 ```
 
 ## License
