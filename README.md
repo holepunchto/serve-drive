@@ -17,7 +17,7 @@ const drive = new Localdrive('./my-folder')
 await drive.put('/index.html', Buffer.from('hi'))
 
 const serve = new ServeDrive()
-serve.add(drive)
+serve.add(drive, { default: true })
 await serve.ready()
 console.log('Listening on http://localhost:' + serve.address().port)
 
