@@ -59,11 +59,14 @@ test('checkout query param (hyperdrive)', async t => {
   t.is(oldResp.status, 200)
   t.is(oldResp.data, 'Here')
 
-  const futureResp = await axios.get(
-    `http://localhost:${serve.address().port}/Something?checkout=100`, { validateStatus: null }
+  // Hangs until future version found
+  await t.exception(
+    axios.get(
+      `http://localhost:${serve.address().port}/Something?checkout=100`,
+      { timeout: 200 }
+    ),
+    /timeout/
   )
-  t.is(futureResp.status, 404)
-  t.is(futureResp.data, 'SNAPSHOT_NOT_AVAILABLE')
 })
 
 test('checkout query param ignored for local drive', async t => {
