@@ -87,6 +87,7 @@ test('can add a non-ready drive with key', async function (t) {
   const reDrive = new Hyperdrive(store.namespace('drive'), key)
 
   t.is(reDrive.opened, false)
+  // drive is not ready but key is sync => no error
   serve.add(reDrive)
 
   const resp = await request(serve, `/file?drive=${zKey}`)
