@@ -193,3 +193,50 @@ test('emits response event on finishing request (localdrive)', async t => {
   t.is(res.status, 200)
   t.is(res.data, 'Here')
 })
+
+test('filter', async function (t) {
+  t.plan(12)
+
+  const hyperdrive = tmpHyperdrive(t)
+  const localdrive = tmpLocaldrive(t)
+
+  await hyperdrive.put('/allowed.txt', 'a1')
+  await hyperdrive.put('/denied.txt', '0')
+
+  await localdrive.put('/allowed.txt', 'b1')
+  await localdrive.put('/denied.txt', '0')
+
+  const serve = new ServeDrive({
+    filter: function (id, filename) {
+      if (id === null) t.pass()
+      else if (id === 'custom') t.pass()
+      else t.fail('Wrong drive id')
+
+      if (filename === '/allowed.txt') return true
+      else if (filename === '/denied.txt') return false
+      else t.fail('Wrong filename: ' + filename)
+    }
+  })
+
+  serve.add(hyperdrive, { default: true })
+  serve.add(localdrive, { alias: 'custom' })
+
+  t.teardown(() => serve.close())
+  await serve.ready()
+
+  const a = await request(serve, '/allowed.txt')
+  t.is(a.status, 200)
+  t.is(a.data, 'a1')
+
+  const b = await request(serve, '/denied.txt')
+  t.is(b.status, 404)
+  t.is(b.data, 'ENOENT')
+
+  const c = await request(serve, '/allowed.txt?drive=custom')
+  t.is(c.status, 200)
+  t.is(c.data, 'b1')
+
+  const d = await request(serve, '/denied.txt?drive=custom')
+  t.is(d.status, 404)
+  t.is(d.data, 'ENOENT')
+})

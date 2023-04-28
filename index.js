@@ -17,6 +17,8 @@ module.exports = class ServeDrive extends ReadyResource {
 
     this.server = opts.server || http.createServer()
     this.server.on('request', this._onrequest.bind(this))
+
+    this._onfilter = opts.filter
   }
 
   async _open () {
@@ -84,6 +86,11 @@ module.exports = class ServeDrive extends ReadyResource {
     const version = searchParams.get('checkout')
     const snapshot = version ? drive.checkout(version) : drive
     const filename = decodeURI(pathname)
+
+    if (this._onfilter && !this._onfilter(id, filename)) {
+      res.writeHead(404).end('ENOENT')
+      return
+    }
 
     let entry
     try {
