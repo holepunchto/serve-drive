@@ -128,3 +128,42 @@ test('multiple drives', async t => {
   t.is(d.status, 404)
   t.is(d.data, 'DRIVE_NOT_FOUND')
 })
+
+test('emits response event on finishing request (hyperdrive)', async t => {
+  t.plan(3)
+
+  const drive = tmpHyperdrive(t)
+  await drive.put('Something', 'Here')
+  const hexKey = drive.key.toString('hex')
+
+  const serve = tmpServe(t)
+  serve.add(drive, { alias: hexKey })
+  await serve.ready()
+
+  serve.on('response', (id) => {
+    t.is(id, hexKey)
+  })
+
+  const res = await request(serve, `/Something?drive=${hexKey}`)
+  t.is(res.status, 200)
+  t.is(res.data, 'Here')
+})
+
+test('emits response event on finishing request (localdrive)', async t => {
+  t.plan(3)
+
+  const drive = tmpLocaldrive(t)
+  await drive.put('Something', 'Here')
+
+  const serve = tmpServe(t)
+  serve.add(drive, { alias: 'drive' })
+  await serve.ready()
+
+  serve.on('response', (id) => {
+    t.is(id, 'drive')
+  })
+
+  const res = await request(serve, '/Something?drive=drive')
+  t.is(res.status, 200)
+  t.is(res.data, 'Here')
+})

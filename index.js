@@ -134,6 +134,7 @@ module.exports = class ServeDrive extends ReadyResource {
     }
 
     rs.pipe(res, safetyCatch)
+    rs.on('close', () => this.emit('response', id))
   }
 }
 
