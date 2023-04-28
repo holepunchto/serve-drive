@@ -2,6 +2,10 @@ const test = require('brittle')
 const ServeDrive = require('..')
 const { request, tmpServe, tmpHyperdrive, tmpLocaldrive } = require('./helpers/index.js')
 const axios = require('axios')
+const RAM = require('random-access-memory')
+const Hyperdrive = require('hyperdrive')
+const Corestore = require('corestore')
+const z32 = require('z32')
 
 test('Can get existing file from drive', async t => {
   t.plan(2 * 2)
@@ -67,6 +71,30 @@ test('checkout query param (hyperdrive)', async t => {
     ),
     /timeout/
   )
+})
+
+test('can add a non-ready drive with key', async function (t) {
+  const store = new Corestore(RAM.reusable())
+  const drive = new Hyperdrive(store.namespace('drive'))
+  await drive.put('/file', 'here')
+  const key = drive.key
+  const zKey = z32.encode(key)
+
+  await drive.close()
+
+  const serve = tmpServe(t)
+  await serve.ready()
+  const reDrive = new Hyperdrive(store.namespace('drive'), key)
+
+  t.is(reDrive.opened, false)
+  serve.add(reDrive) // No error
+
+  // Sanity check: can get file
+  const resp = await axios.get(
+    `http://localhost:${serve.address().port}/file?drive=${zKey}`
+  )
+  t.is(resp.status, 200)
+  t.is(resp.data, 'here')
 })
 
 test('checkout query param ignored for local drive', async t => {
