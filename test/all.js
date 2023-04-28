@@ -87,9 +87,8 @@ test('can add a non-ready drive with key', async function (t) {
   const reDrive = new Hyperdrive(store.namespace('drive'), key)
 
   t.is(reDrive.opened, false)
-  serve.add(reDrive) // No error
+  serve.add(reDrive)
 
-  // Sanity check: can get file
   const resp = await axios.get(
     `http://localhost:${serve.address().port}/file?drive=${zKey}`
   )
