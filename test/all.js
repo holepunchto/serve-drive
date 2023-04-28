@@ -89,9 +89,7 @@ test('can add a non-ready drive with key', async function (t) {
   t.is(reDrive.opened, false)
   serve.add(reDrive)
 
-  const resp = await axios.get(
-    `http://localhost:${serve.address().port}/file?drive=${zKey}`
-  )
+  const resp = await request(serve, `/file?drive=${zKey}`)
   t.is(resp.status, 200)
   t.is(resp.data, 'here')
 })
