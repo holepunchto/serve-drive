@@ -140,7 +140,7 @@ module.exports = class ServeDrive extends ReadyResource {
     try {
       await this._driveToRequest(drive, req, res, pathname, { version, id })
     } finally {
-      this.releaseDrive(id)
+      await this.releaseDrive(id)
     }
   }
 }
