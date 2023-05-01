@@ -58,6 +58,73 @@ module.exports = class ServeDrive extends ReadyResource {
     return link
   }
 
+  async _driveToRequest (drive, req, res, pathname, { id, version }) {
+    if (!drive) {
+      res.writeHead(404).end('DRIVE_NOT_FOUND')
+      return
+    }
+
+    const snapshot = version ? drive.checkout(version) : drive
+    if (version) res.on('close', () => snapshot.close())
+
+    const filename = decodeURI(pathname)
+
+    if (this._onfilter && !this._onfilter(id, filename)) {
+      res.writeHead(404).end('ENOENT')
+      return
+    }
+
+    let entry
+    try {
+      entry = await snapshot.entry(filename)
+    } catch (e) {
+      const msg = e.code || e.message
+
+      if (e.code === 'SNAPSHOT_NOT_AVAILABLE') res.writeHead(404)
+      else res.writeHead(500)
+
+      res.end(msg)
+      return
+    }
+
+    if (!entry || !entry.value.blob) {
+      res.writeHead(404).end('ENOENT')
+      return
+    }
+
+    const contentType = mime.lookup(filename)
+    res.setHeader('Content-Type', contentType === false ? 'application/octet-stream' : contentType)
+    res.setHeader('Accept-Ranges', 'bytes')
+
+    let rs
+
+    if (req.headers.range) {
+      const ranges = rangeParser(entry.value.blob.byteLength, req.headers.range)
+
+      if (ranges === -1 || ranges === -2) {
+        res.statusCode = 206
+        res.setHeader('Content-Length', 0)
+        res.end()
+        return
+      }
+
+      const range = ranges[0]
+      const byteLength = range.end - range.start + 1
+
+      res.statusCode = 206
+      res.setHeader('Content-Range', 'bytes ' + range.start + '-' + range.end + '/' + entry.value.blob.byteLength)
+      res.setHeader('Content-Length', byteLength)
+
+      rs = snapshot.createReadStream(filename, { start: range.start, length: byteLength })
+    } else {
+      res.setHeader('Content-Length', entry.value.blob.byteLength)
+
+      rs = snapshot.createReadStream(filename, { start: 0, length: entry.value.blob.byteLength })
+    }
+
+    await pipelinePromise(rs, res)
+  }
+
   async _onrequest (req, res) {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.writeHead(400).end()
@@ -65,76 +132,13 @@ module.exports = class ServeDrive extends ReadyResource {
     }
 
     const { pathname, searchParams } = new URL(req.url, 'http://localhost')
-
+    const version = searchParams.get('checkout')
     const id = searchParams.get('drive') // String or null
+
     const drive = await this.getDrive(id)
 
     try {
-      if (!drive) {
-        res.writeHead(404).end('DRIVE_NOT_FOUND')
-        return
-      }
-
-      const version = searchParams.get('checkout')
-      const snapshot = version ? drive.checkout(version) : drive
-      if (version) res.on('close', () => snapshot.close())
-
-      const filename = decodeURI(pathname)
-
-      if (this._onfilter && !this._onfilter(id, filename)) {
-        res.writeHead(404).end('ENOENT')
-        return
-      }
-
-      let entry
-      try {
-        entry = await snapshot.entry(filename)
-      } catch (e) {
-        const msg = e.code || e.message
-
-        if (e.code === 'SNAPSHOT_NOT_AVAILABLE') res.writeHead(404)
-        else res.writeHead(500)
-
-        res.end(msg)
-        return
-      }
-
-      if (!entry || !entry.value.blob) {
-        res.writeHead(404).end('ENOENT')
-        return
-      }
-
-      const contentType = mime.lookup(filename)
-      res.setHeader('Content-Type', contentType === false ? 'application/octet-stream' : contentType)
-      res.setHeader('Accept-Ranges', 'bytes')
-
-      let rs
-
-      if (req.headers.range) {
-        const ranges = rangeParser(entry.value.blob.byteLength, req.headers.range)
-
-        if (ranges === -1 || ranges === -2) {
-          res.statusCode = 206
-          res.setHeader('Content-Length', 0)
-          res.end()
-          return
-        }
-
-        const range = ranges[0]
-        const byteLength = range.end - range.start + 1
-
-        res.statusCode = 206
-        res.setHeader('Content-Range', 'bytes ' + range.start + '-' + range.end + '/' + entry.value.blob.byteLength)
-        res.setHeader('Content-Length', byteLength)
-
-        rs = snapshot.createReadStream(filename, { start: range.start, length: byteLength })
-      } else {
-        res.setHeader('Content-Length', entry.value.blob.byteLength)
-
-        rs = snapshot.createReadStream(filename, { start: 0, length: entry.value.blob.byteLength })
-      }
-
-      await pipelinePromise(rs, res)
+      await this._driveToRequest(drive, req, res, pathname, { version, id })
     } finally {
       this.releaseDrive(id)
     }
