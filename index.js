@@ -164,4 +164,4 @@ function listen (server, port, address) {
   })
 }
 
-const noop = () => {}
+function noop () {}
