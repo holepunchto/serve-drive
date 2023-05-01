@@ -58,7 +58,7 @@ module.exports = class ServeDrive extends ReadyResource {
     return link
   }
 
-  async _driveToRequest (drive, req, res, pathname, { id, version }) {
+  async _driveToRequest (drive, req, res, pathname, id, version) {
     if (!drive) {
       res.writeHead(404).end('DRIVE_NOT_FOUND')
       return
@@ -138,7 +138,7 @@ module.exports = class ServeDrive extends ReadyResource {
     const drive = await this.getDrive(id)
 
     try {
-      await this._driveToRequest(drive, req, res, pathname, { version, id })
+      await this._driveToRequest(drive, req, res, pathname, id, version)
     } finally {
       await this.releaseDrive(id)
     }
