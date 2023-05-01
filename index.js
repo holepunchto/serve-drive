@@ -134,7 +134,6 @@ module.exports = class ServeDrive extends ReadyResource {
 
       await pipelinePromise(rs, res)
     } finally {
-      this.emit('response', id)
       this.releaseDrive(id)
     }
   }
