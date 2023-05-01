@@ -77,6 +77,8 @@ module.exports = class ServeDrive extends ReadyResource {
 
       const version = searchParams.get('checkout')
       const snapshot = version ? drive.checkout(version) : drive
+      if (version) res.on('close', () => snapshot.close())
+
       const filename = decodeURI(pathname)
 
       if (this._onfilter && !this._onfilter(id, filename)) {
