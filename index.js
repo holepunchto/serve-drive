@@ -122,7 +122,7 @@ module.exports = class ServeDrive extends ReadyResource {
 
       rs = snapshot.createReadStream(filename, { start: 0, length: entry.value.blob.byteLength })
     }
-
+    res.on('close', () => rs.destroy())
     await pipelinePromise(rs, res)
   }
 
