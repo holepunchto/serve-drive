@@ -2,14 +2,16 @@ const http = require('http')
 const rangeParser = require('range-parser')
 const mime = require('mime-types')
 const ReadyResource = require('ready-resource')
-const z32 = require('z32')
 const safetyCatch = require('safety-catch')
+const { pipelinePromise } = require('streamx')
 
 module.exports = class ServeDrive extends ReadyResource {
   constructor (opts = {}) {
     super()
 
-    this.drives = new Map()
+    if (!opts.getDrive) throw new Error('Must specify getDrive function')
+    this.getDrive = opts.getDrive
+    this.releaseDrive = opts.releaseDrive || noop
 
     this.port = typeof opts.port !== 'undefined' ? Number(opts.port) : 7000
     this.host = typeof opts.host !== 'undefined' ? opts.host : null
@@ -45,46 +47,27 @@ module.exports = class ServeDrive extends ReadyResource {
     return this.server.address()
   }
 
-  add (drive, opts = {}) {
-    if (opts.alias && opts.default) throw new Error('Can not use both alias and default')
-    if (drive.key === null) throw new Error('Drive is not ready')
-    if (!opts.default && !opts.alias && !drive.key) throw new Error('Localdrive needs an alias or to be the default')
+  getLink (path, id, version) {
+    const { port } = this.address()
 
-    if (opts.default) this.drives.set(null, drive)
-    if (opts.alias) this.drives.set(opts.alias, drive)
+    let link = `http://localhost:${port}/${path}`
+    if (id || version) link += '?'
+    if (id) link += `drive=${id}`
 
-    if (drive.key) this.drives.set(z32.encode(drive.key), drive)
+    if (id && version) link += '&'
+    if (version) link += `checkout=${version}`
+    return link
   }
 
-  delete (drive, opts = {}) {
-    if (opts.alias && opts.default) throw new Error('Can not use both alias and default')
-    if (!drive.opened && drive.key === null) throw new Error('Drive is not ready')
-    if (!opts.default && !opts.alias && !drive.key) throw new Error('Localdrive needs an alias or to be the default')
-
-    if (opts.default) this.drives.delete(null)
-    if (opts.alias) this.drives.delete(opts.alias)
-
-    if (drive.key) this.drives.delete(z32.encode(drive.key))
-  }
-
-  async _onrequest (req, res) {
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      res.writeHead(400).end()
-      return
-    }
-
-    const { pathname, searchParams } = new URL(req.url, 'http://localhost')
-
-    const id = searchParams.get('drive') // String or null
-    const drive = this.drives.get(id)
-
+  async _driveToRequest (drive, req, res, pathname, id, version) {
     if (!drive) {
       res.writeHead(404).end('DRIVE_NOT_FOUND')
       return
     }
 
-    const version = searchParams.get('checkout')
     const snapshot = version ? drive.checkout(version) : drive
+    if (version) req.on('close', () => snapshot.close().catch(safetyCatch))
+
     const filename = decodeURI(pathname)
 
     if (this._onfilter && !this._onfilter(id, filename)) {
@@ -140,8 +123,26 @@ module.exports = class ServeDrive extends ReadyResource {
       rs = snapshot.createReadStream(filename, { start: 0, length: entry.value.blob.byteLength })
     }
 
-    rs.pipe(res, safetyCatch)
-    rs.on('close', () => this.emit('response', id))
+    await pipelinePromise(rs, res)
+  }
+
+  async _onrequest (req, res) {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      res.writeHead(400).end()
+      return
+    }
+
+    const { pathname, searchParams } = new URL(req.url, 'http://localhost')
+    const version = searchParams.get('checkout')
+    const id = searchParams.get('drive') // String or null
+
+    const drive = await this.getDrive(id)
+
+    try {
+      await this._driveToRequest(drive, req, res, pathname, id, version)
+    } finally {
+      await this.releaseDrive(id)
+    }
   }
 }
 
@@ -162,3 +163,5 @@ function listen (server, port, address) {
     }
   })
 }
+
+function noop () {}

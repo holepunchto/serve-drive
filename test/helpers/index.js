@@ -16,12 +16,13 @@ module.exports = {
   createTmpDir
 }
 
-async function request (serve, uri) {
-  return axios.get('http://localhost:' + serve.address().port + uri, { validateStatus: false })
+async function request (serve, path, { id, version } = {}) {
+  const link = serve.getLink(path, id, version)
+  return axios.get(link, { validateStatus: false })
 }
 
-function tmpServe (t) {
-  const serve = new ServeDrive()
+function tmpServe (t, getDrive, releaseDrive) {
+  const serve = new ServeDrive({ getDrive, releaseDrive })
   t.teardown(() => serve.close())
   return serve
 }
