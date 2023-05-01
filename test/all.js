@@ -7,20 +7,25 @@ const Hyperdrive = require('hyperdrive')
 const Corestore = require('corestore')
 const z32 = require('z32')
 
-test('Can get existing file from drive', async t => {
-  t.plan(2 * 2)
+test.solo('Can get existing file from drive', async t => {
+  t.plan(2 * 3)
 
   for (const isHyper of [true, false]) {
     const drive = isHyper ? tmpHyperdrive(t) : tmpLocaldrive(t)
+
+    let released = false
+    const getDrive = () => drive
+    const releaseDrive = () => { released = true }
+
     await drive.put('Something', 'Here')
 
-    const serve = tmpServe(t)
-    serve.add(drive, { default: true })
+    const serve = tmpServe(t, getDrive, releaseDrive)
     await serve.ready()
 
-    const res = await request(serve, '/Something')
+    const res = await request(serve, 'Something')
     t.is(res.status, 200)
     t.is(res.data, 'Here')
+    t.is(released, true)
   }
 })
 

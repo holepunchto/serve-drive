@@ -2,14 +2,15 @@ const http = require('http')
 const rangeParser = require('range-parser')
 const mime = require('mime-types')
 const ReadyResource = require('ready-resource')
-const z32 = require('z32')
 const safetyCatch = require('safety-catch')
+const { pipelinePromise } = require('streamx')
 
 module.exports = class ServeDrive extends ReadyResource {
-  constructor (opts = {}) {
+  constructor (getDrive, releaseDrive, opts = {}) {
     super()
 
-    this.drives = new Map()
+    this.getDrive = getDrive
+    this.releaseDrive = releaseDrive
 
     this.port = typeof opts.port !== 'undefined' ? Number(opts.port) : 7000
     this.host = typeof opts.host !== 'undefined' ? opts.host : null
@@ -45,26 +46,16 @@ module.exports = class ServeDrive extends ReadyResource {
     return this.server.address()
   }
 
-  add (drive, opts = {}) {
-    if (opts.alias && opts.default) throw new Error('Can not use both alias and default')
-    if (drive.key === null) throw new Error('Drive is not ready')
-    if (!opts.default && !opts.alias && !drive.key) throw new Error('Localdrive needs an alias or to be the default')
+  getLink (path, id, version) {
+    const { port } = this.address()
 
-    if (opts.default) this.drives.set(null, drive)
-    if (opts.alias) this.drives.set(opts.alias, drive)
+    let link = `http://localhost:${port}/${path}`
+    if (id || version) link += '?'
+    if (id) link += id
 
-    if (drive.key) this.drives.set(z32.encode(drive.key), drive)
-  }
-
-  delete (drive, opts = {}) {
-    if (opts.alias && opts.default) throw new Error('Can not use both alias and default')
-    if (!drive.opened && drive.key === null) throw new Error('Drive is not ready')
-    if (!opts.default && !opts.alias && !drive.key) throw new Error('Localdrive needs an alias or to be the default')
-
-    if (opts.default) this.drives.delete(null)
-    if (opts.alias) this.drives.delete(opts.alias)
-
-    if (drive.key) this.drives.delete(z32.encode(drive.key))
+    if (id && version) link += '&'
+    if (version) link += `checkout=${version}`
+    return link
   }
 
   async _onrequest (req, res) {
@@ -76,72 +67,76 @@ module.exports = class ServeDrive extends ReadyResource {
     const { pathname, searchParams } = new URL(req.url, 'http://localhost')
 
     const id = searchParams.get('drive') // String or null
-    const drive = this.drives.get(id)
+    const drive = await this.getDrive(id)
 
-    if (!drive) {
-      res.writeHead(404).end('DRIVE_NOT_FOUND')
-      return
-    }
-
-    const version = searchParams.get('checkout')
-    const snapshot = version ? drive.checkout(version) : drive
-    const filename = decodeURI(pathname)
-
-    if (this._onfilter && !this._onfilter(id, filename)) {
-      res.writeHead(404).end('ENOENT')
-      return
-    }
-
-    let entry
     try {
-      entry = await snapshot.entry(filename)
-    } catch (e) {
-      const msg = e.code || e.message
-
-      if (e.code === 'SNAPSHOT_NOT_AVAILABLE') res.writeHead(404)
-      else res.writeHead(500)
-
-      res.end(msg)
-      return
-    }
-
-    if (!entry || !entry.value.blob) {
-      res.writeHead(404).end('ENOENT')
-      return
-    }
-
-    const contentType = mime.lookup(filename)
-    res.setHeader('Content-Type', contentType === false ? 'application/octet-stream' : contentType)
-    res.setHeader('Accept-Ranges', 'bytes')
-
-    let rs
-
-    if (req.headers.range) {
-      const ranges = rangeParser(entry.value.blob.byteLength, req.headers.range)
-
-      if (ranges === -1 || ranges === -2) {
-        res.statusCode = 206
-        res.setHeader('Content-Length', 0)
-        res.end()
+      if (!drive) {
+        res.writeHead(404).end('DRIVE_NOT_FOUND')
         return
       }
 
-      const range = ranges[0]
-      const byteLength = range.end - range.start + 1
+      const version = searchParams.get('checkout')
+      const snapshot = version ? drive.checkout(version) : drive
+      const filename = decodeURI(pathname)
 
-      res.statusCode = 206
-      res.setHeader('Content-Range', 'bytes ' + range.start + '-' + range.end + '/' + entry.value.blob.byteLength)
-      res.setHeader('Content-Length', byteLength)
+      if (this._onfilter && !this._onfilter(id, filename)) {
+        res.writeHead(404).end('ENOENT')
+        return
+      }
 
-      rs = snapshot.createReadStream(filename, { start: range.start, length: byteLength })
-    } else {
-      res.setHeader('Content-Length', entry.value.blob.byteLength)
+      let entry
+      try {
+        entry = await snapshot.entry(filename)
+      } catch (e) {
+        const msg = e.code || e.message
 
-      rs = snapshot.createReadStream(filename, { start: 0, length: entry.value.blob.byteLength })
+        if (e.code === 'SNAPSHOT_NOT_AVAILABLE') res.writeHead(404)
+        else res.writeHead(500)
+
+        res.end(msg)
+        return
+      }
+
+      if (!entry || !entry.value.blob) {
+        res.writeHead(404).end('ENOENT')
+        return
+      }
+
+      const contentType = mime.lookup(filename)
+      res.setHeader('Content-Type', contentType === false ? 'application/octet-stream' : contentType)
+      res.setHeader('Accept-Ranges', 'bytes')
+
+      let rs
+
+      if (req.headers.range) {
+        const ranges = rangeParser(entry.value.blob.byteLength, req.headers.range)
+
+        if (ranges === -1 || ranges === -2) {
+          res.statusCode = 206
+          res.setHeader('Content-Length', 0)
+          res.end()
+          return
+        }
+
+        const range = ranges[0]
+        const byteLength = range.end - range.start + 1
+
+        res.statusCode = 206
+        res.setHeader('Content-Range', 'bytes ' + range.start + '-' + range.end + '/' + entry.value.blob.byteLength)
+        res.setHeader('Content-Length', byteLength)
+
+        rs = snapshot.createReadStream(filename, { start: range.start, length: byteLength })
+      } else {
+        res.setHeader('Content-Length', entry.value.blob.byteLength)
+
+        rs = snapshot.createReadStream(filename, { start: 0, length: entry.value.blob.byteLength })
+      }
+
+      await pipelinePromise(rs, res)
+    } finally {
+      this.emit('response', id)
+      this.releaseDrive(id)
     }
-
-    rs.pipe(res, safetyCatch)
-    rs.on('close', () => this.emit('response', id))
   }
 }
 
