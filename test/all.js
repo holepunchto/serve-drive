@@ -241,7 +241,8 @@ test('filter', async function (t) {
     releases[id != null ? id : 'default'] += 1
   }
 
-  const serve = new ServeDrive(getDrive, releaseDrive, {
+  const serve = new ServeDrive(getDrive, {
+    releaseDrive,
     filter: function (id, filename) {
       if (id === null) t.pass()
       else if (id === 'custom') t.pass()

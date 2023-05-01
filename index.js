@@ -6,11 +6,11 @@ const safetyCatch = require('safety-catch')
 const { pipelinePromise } = require('streamx')
 
 module.exports = class ServeDrive extends ReadyResource {
-  constructor (getDrive, releaseDrive, opts = {}) {
+  constructor (getDrive, opts = {}) {
     super()
 
     this.getDrive = getDrive
-    this.releaseDrive = releaseDrive
+    this.releaseDrive = opts.releaseDrive || noop
 
     this.port = typeof opts.port !== 'undefined' ? Number(opts.port) : 7000
     this.host = typeof opts.host !== 'undefined' ? opts.host : null
@@ -162,3 +162,5 @@ function listen (server, port, address) {
     }
   })
 }
+
+const noop = () => {}
