@@ -51,7 +51,7 @@ module.exports = class ServeDrive extends ReadyResource {
 
     let link = `http://localhost:${port}/${path}`
     if (id || version) link += '?'
-    if (id) link += id
+    if (id) link += `drive=${id}`
 
     if (id && version) link += '&'
     if (version) link += `checkout=${version}`
