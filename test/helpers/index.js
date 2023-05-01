@@ -22,7 +22,7 @@ async function request (serve, path, { id, version } = {}) {
 }
 
 function tmpServe (t, getDrive, releaseDrive) {
-  const serve = new ServeDrive(getDrive, { releaseDrive })
+  const serve = new ServeDrive({ getDrive, releaseDrive })
   t.teardown(() => serve.close())
   return serve
 }

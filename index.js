@@ -6,10 +6,11 @@ const safetyCatch = require('safety-catch')
 const { pipelinePromise } = require('streamx')
 
 module.exports = class ServeDrive extends ReadyResource {
-  constructor (getDrive, opts = {}) {
+  constructor (opts = {}) {
     super()
 
-    this.getDrive = getDrive
+    if (!opts.getDrive) throw new Error('Must specify getDrive function')
+    this.getDrive = opts.getDrive
     this.releaseDrive = opts.releaseDrive || noop
 
     this.port = typeof opts.port !== 'undefined' ? Number(opts.port) : 7000
