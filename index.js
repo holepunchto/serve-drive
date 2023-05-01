@@ -69,6 +69,7 @@ module.exports = class ServeDrive extends ReadyResource {
     if (version) req.on('close', () => snapshot.close().catch(safetyCatch))
 
     const filename = decodeURI(pathname)
+    const isHEAD = req.method === 'HEAD'
 
     if (this._onfilter && !this._onfilter(id, filename)) {
       res.writeHead(404).end('ENOENT')
@@ -97,7 +98,8 @@ module.exports = class ServeDrive extends ReadyResource {
     res.setHeader('Content-Type', contentType === false ? 'application/octet-stream' : contentType)
     res.setHeader('Accept-Ranges', 'bytes')
 
-    let rs
+    let start = 0
+    let length = entry.value.blob.byteLength
 
     if (req.headers.range) {
       const ranges = rangeParser(entry.value.blob.byteLength, req.headers.range)
@@ -116,13 +118,18 @@ module.exports = class ServeDrive extends ReadyResource {
       res.setHeader('Content-Range', 'bytes ' + range.start + '-' + range.end + '/' + entry.value.blob.byteLength)
       res.setHeader('Content-Length', byteLength)
 
-      rs = snapshot.createReadStream(filename, { start: range.start, length: byteLength })
+      start = range.start
+      length = byteLength
     } else {
       res.setHeader('Content-Length', entry.value.blob.byteLength)
-
-      rs = snapshot.createReadStream(filename, { start: 0, length: entry.value.blob.byteLength })
     }
 
+    if (isHEAD) {
+      res.end()
+      return
+    }
+
+    const rs = snapshot.createReadStream(filename, { start, length })
     await pipelinePromise(rs, res)
   }
 
