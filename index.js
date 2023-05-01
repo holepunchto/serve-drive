@@ -135,7 +135,7 @@ module.exports = class ServeDrive extends ReadyResource {
     const version = searchParams.get('checkout')
     const id = searchParams.get('drive') // String or null
 
-    const drive = await this.getDrive(id)
+    const drive = await this.getDrive(id, pathname)
 
     try {
       await this._driveToRequest(drive, req, res, pathname, id, version)
