@@ -74,7 +74,6 @@ Available `options`:
 
 The `releaseDrive` function is called with the drive `id` whenever a request finishes.
 
-
 You could pass your own server instance, for example:
 ```js
 const ServeDrive = require('serve-drive')
