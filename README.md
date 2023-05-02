@@ -64,7 +64,7 @@ Use the `drive` query param to select which drive to use, i.e. `/filename?drive=
 Available `options`:
 ```js
 {
-  releaseDrive: releaseDrive: (id) => {},
+  releaseDrive: (id) => {},
   port: 7000,
   host: '0.0.0.0',
   anyPort: true,
