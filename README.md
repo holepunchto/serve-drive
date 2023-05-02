@@ -77,7 +77,7 @@ The `releaseDrive` function is called with the drive `id` whenever a request fin
 
 You could pass your own server instance, for example:
 ```js
-const ServeDrive = require('.')
+const ServeDrive = require('serve-drive')
 const Localdrive = require('localdrive')
 const http = require('http')
 const graceful = require('graceful-http')
