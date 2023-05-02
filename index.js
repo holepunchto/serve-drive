@@ -59,7 +59,7 @@ module.exports = class ServeDrive extends ReadyResource {
     return link
   }
 
-  async _driveToRequest (drive, req, res, pathname, id, version) {
+  async _driveToRequest (drive, req, res, filename, id, version) {
     if (!drive) {
       res.writeHead(404).end('DRIVE_NOT_FOUND')
       return
@@ -68,7 +68,6 @@ module.exports = class ServeDrive extends ReadyResource {
     const snapshot = version ? drive.checkout(version) : drive
     if (version) req.on('close', () => snapshot.close().catch(safetyCatch))
 
-    const filename = decodeURI(pathname)
     const isHEAD = req.method === 'HEAD'
 
     if (this._onfilter && !this._onfilter(id, filename)) {
@@ -143,10 +142,11 @@ module.exports = class ServeDrive extends ReadyResource {
     const version = searchParams.get('checkout')
     const id = searchParams.get('drive') // String or null
 
-    const drive = await this.getDrive(id, pathname)
+    const filename = decodeURI(pathname)
+    const drive = await this.getDrive(id, filename)
 
     try {
-      await this._driveToRequest(drive, req, res, pathname, id, version)
+      await this._driveToRequest(drive, req, res, filename, id, version)
     } catch (e) {
       safetyCatch(e)
     } finally {
