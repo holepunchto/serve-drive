@@ -147,6 +147,8 @@ module.exports = class ServeDrive extends ReadyResource {
 
     try {
       await this._driveToRequest(drive, req, res, pathname, id, version)
+    } catch (e) {
+      safetyCatch(e)
     } finally {
       await this.releaseDrive(id)
     }
