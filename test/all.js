@@ -29,6 +29,24 @@ test('Can get existing file from drive (default-drive pattern)', async t => {
   }
 })
 
+test('getDrive passes cleaned up path', async t => {
+  const drive = tmpHyperdrive(t)
+
+  let passedPath = null
+  const getDrive = (key, path) => {
+    passedPath = path
+    return drive
+  }
+  await drive.put('Something spacy', 'Here')
+
+  const serve = tmpServe(t, getDrive)
+  await serve.ready()
+
+  const res = await request(serve, 'Something spacy')
+  t.is(res.data, 'Here')
+  t.is(passedPath, '/Something spacy')
+})
+
 test('404 if file not found', async t => {
   t.plan(2 * 3)
 
