@@ -16,7 +16,7 @@ const Localdrive = require('localdrive')
 const drive = new Localdrive('./my-folder')
 await drive.put('/index.html', Buffer.from('hi'))
 
-const serve = new ServeDrive({ getDrive: () => drive })
+const serve = new ServeDrive({ getDrive: (id, filename) => drive })
 await serve.ready()
 console.log('Listening on http://localhost:' + serve.address().port)
 
@@ -37,7 +37,7 @@ await drive1.put('/index.html', Buffer.from('a'))
 await drive2.put('/index.html', Buffer.from('b'))
 await drive3.put('/index.html', Buffer.from('c'))
 
-const getDrive = (id) => {
+const getDrive = (id, filename) => {
   if (id == null) return drive1 // default
   if (id === 'custom-alias') return drive2
   if (id === drive3.key.toString('hex')) return drive3
@@ -88,7 +88,7 @@ const close = graceful(server)
 const drive = new Localdrive('./my-folder')
 
 const serve = new ServeDrive({
-  getDrive: () => drive,
+  getDrive: (id, filename) => drive,
   server
 })
 await serve.ready()
