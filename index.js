@@ -84,8 +84,10 @@ module.exports = class ServeDrive extends ReadyResource {
       const msg = e.code || e.message
 
       if (e.code === 'SNAPSHOT_NOT_AVAILABLE') res.writeHead(404)
-      else res.writeHead(500)
-
+      else {
+        this.emit('request-error', e)
+        res.writeHead(500)
+      }
       res.end(msg)
       return
     }
@@ -143,14 +145,18 @@ module.exports = class ServeDrive extends ReadyResource {
     const { pathname, searchParams } = new URL(req.url, 'http://localhost')
     const version = searchParams.get('checkout')
     const id = searchParams.get('drive') // String or null
-
     const filename = decodeURI(pathname)
+
     const drive = await this.getDrive(id, filename)
 
     try {
       await this._driveToRequest(drive, req, res, filename, id, version)
     } catch (e) {
       safetyCatch(e)
+      this.emit('request-error', e)
+      res.writeHead(500)
+      const msg = e.code || e.message
+      res.end(msg)
     } finally {
       await this.releaseDrive(id)
     }

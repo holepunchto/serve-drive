@@ -73,6 +73,22 @@ test('getLink optional params', async t => {
   t.is(serve.getLink('file', 'an-alias', 5), `${base}/file?drive=an-alias&checkout=5`)
 })
 
+test('emits request-error if unexpected error when getting entry', async t => {
+  const drive = tmpHyperdrive(t)
+  await drive.close() // Will cause errors
+
+  const getDrive = () => drive
+  const serve = tmpServe(t, getDrive)
+
+  let errorObj
+  serve.on('request-error', e => { errorObj = e })
+  await serve.ready()
+
+  const res = await request(serve, 'Whatever')
+  t.is(res.status, 500)
+  t.is(errorObj.code, 'SESSION_CLOSED')
+})
+
 test('404 if file not found', async t => {
   t.plan(2 * 3)
 
