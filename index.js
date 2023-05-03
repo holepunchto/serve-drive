@@ -143,9 +143,9 @@ module.exports = class ServeDrive extends ReadyResource {
     const { pathname, searchParams } = new URL(req.url, 'http://localhost')
     const version = searchParams.get('checkout')
     const id = searchParams.get('drive') // String or null
+    const filename = decodeURI(pathname)
 
     try {
-      const filename = decodeURI(pathname)
       const drive = await this.getDrive(id, filename)
       await this._driveToRequest(drive, req, res, filename, id, version)
     } catch (e) {
