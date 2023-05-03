@@ -47,6 +47,32 @@ test('getDrive passes cleaned up path', async t => {
   t.is(passedPath, '/Something spacy')
 })
 
+test('getLink handles different path formats', async t => {
+  const serve = tmpServe(t, () => {})
+  await serve.ready()
+  const link1 = serve.getLink('myFile')
+  const link2 = serve.getLink('/myFile')
+  const link3 = serve.getLink('./myFile')
+
+  const base = `http://localhost:${serve.address().port}`
+  t.is(link1, link2)
+  t.is(link1, link3)
+  t.is(link1, `${base}/myFile`)
+
+  const link4 = serve.getLink('/myDir/myFile.txt')
+  t.is(link4, `${base}/myDir/myFile.txt`)
+})
+
+test('getLink optional params', async t => {
+  const serve = tmpServe(t, () => {})
+  await serve.ready()
+
+  const base = `http://localhost:${serve.address().port}`
+  t.is(serve.getLink('file', 'an-alias'), `${base}/file?drive=an-alias`)
+  t.is(serve.getLink('file', null, 5), `${base}/file?checkout=5`)
+  t.is(serve.getLink('file', 'an-alias', 5), `${base}/file?drive=an-alias&checkout=5`)
+})
+
 test('404 if file not found', async t => {
   t.plan(2 * 3)
 

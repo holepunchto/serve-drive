@@ -4,6 +4,7 @@ const mime = require('mime-types')
 const ReadyResource = require('ready-resource')
 const safetyCatch = require('safety-catch')
 const { pipelinePromise } = require('streamx')
+const unixPathResolve = require('unix-path-resolve')
 
 module.exports = class ServeDrive extends ReadyResource {
   constructor (opts = {}) {
@@ -48,9 +49,10 @@ module.exports = class ServeDrive extends ReadyResource {
   }
 
   getLink (path, id, version) {
+    path = unixPathResolve('/', path)
     const { port } = this.address()
 
-    let link = `http://localhost:${port}/${path}`
+    let link = `http://localhost:${port}${path}`
     if (id || version) link += '?'
     if (id) link += `drive=${id}`
 
