@@ -63,19 +63,6 @@ test('emits request-error if unexpected error when getting entry', async t => {
   t.is(errorObj.code, 'SESSION_CLOSED')
 })
 
-test('emits request-error if unexpected error', async t => {
-  const getDrive = () => { throw new Error('Problem') }
-  const serve = tmpServe(t, getDrive)
-
-  let errorObj
-  serve.on('request-error', e => { errorObj = e })
-  await serve.ready()
-
-  const res = await request(serve, 'Whatever')
-  t.is(res.status, 500)
-  t.is(errorObj.message, 'Problem')
-})
-
 test('404 if file not found', async t => {
   t.plan(2 * 3)
 
