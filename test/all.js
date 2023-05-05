@@ -371,8 +371,11 @@ test('file server does not wait for reqs to finish before closing', async t => {
 
   await serve.close()
   await t.exception(dlProm) // Download failed
+
+  // Fails on mac if not waiting here
+  await new Promise(resolve => setTimeout(resolve, 50))
   t.is(released, 1)
 
   const msPassed = performance.now() - startTime
-  t.is(msPassed < 400, true) // (full download would have taken longer)
+  t.is(msPassed < 300, true) // (full download would have taken longer)
 })
