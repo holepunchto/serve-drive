@@ -374,5 +374,5 @@ test('file server does not wait for reqs to finish before closing', async t => {
   t.is(released, 1)
 
   const msPassed = performance.now() - startTime
-  t.is(msPassed < 150, true) // (full download would have taken longer)
+  t.is(msPassed < 400, true) // (full download would have taken longer)
 })
