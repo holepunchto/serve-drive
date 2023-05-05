@@ -162,9 +162,11 @@ module.exports = class ServeDrive extends ReadyResource {
       safetyCatch(e)
       this.emit('request-error', e)
 
-      if (!res.headersSent) res.writeHead(500)
-      const msg = e.code || e.message
-      res.end(msg)
+      if (!res.headersSent) {
+        res.writeHead(500)
+        const msg = e.code || e.message
+        res.end(msg)
+      }
     } finally {
       await this.releaseDrive(id)
     }
