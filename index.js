@@ -18,7 +18,7 @@ module.exports = class ServeDrive extends ReadyResource {
     this.host = typeof opts.host !== 'undefined' ? opts.host : null
     this.anyPort = opts.anyPort !== false
 
-    this._connections = new Set()
+    this.connections = new Set()
     this.server = opts.server || http.createServer()
     this.server.on('request', this._onrequest.bind(this))
 
@@ -29,8 +29,8 @@ module.exports = class ServeDrive extends ReadyResource {
     await Promise.resolve() // Wait a tick, so you don't rely on server.address() being sync sometimes
 
     this.server.on('connection', c => {
-      this._connections.add(c)
-      c.on('close', () => this._connections.delete(c))
+      this.connections.add(c)
+      c.on('close', () => this.connections.delete(c))
     })
 
     try {
@@ -43,7 +43,7 @@ module.exports = class ServeDrive extends ReadyResource {
   }
 
   async _close () {
-    for (const c of this._connections) {
+    for (const c of this.connections) {
       c.destroy()
     }
     if (this.server.listening) {
