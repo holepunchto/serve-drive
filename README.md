@@ -74,28 +74,6 @@ Available `options`:
 
 The `releaseDrive` function is called with the drive `id` whenever a request finishes.
 
-You could pass your own server instance, for example:
-```js
-const ServeDrive = require('serve-drive')
-const Localdrive = require('localdrive')
-const http = require('http')
-const graceful = require('graceful-http')
-const goodbye = require('graceful-goodbye')
-
-const server = http.createServer()
-const close = graceful(server)
-const drive = new Localdrive('./my-folder')
-
-const serve = new ServeDrive({
-  getDrive: (id, filename) => drive,
-  server
-})
-await serve.ready()
-console.log('server ready')
-
-goodbye(() => close())
-```
-
 #### `serve.getLink(path, id, version)`
 
 Gets a link to the file at the given path.

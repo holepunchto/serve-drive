@@ -350,3 +350,32 @@ test('filter', async function (t) {
     custom: 2
   })
 })
+
+test('file server does not wait for reqs to finish before closing', async t => {
+  const drive = tmpHyperdrive(t)
+
+  let released = 0
+  const getDrive = () => drive
+  const releaseDrive = () => { released++ }
+
+  const manyBytes = 'a'.repeat(1000 * 1000 * 250)
+  await drive.put('Something', manyBytes)
+
+  const serve = tmpServe(t, getDrive, releaseDrive)
+  await serve.ready()
+
+  const startTime = performance.now()
+  const dlProm = request(serve, 'Something')
+  // Give some time to get started
+  await new Promise(resolve => setTimeout(resolve, 50))
+
+  await serve.close()
+  await t.exception(dlProm) // Download failed
+
+  // Fails on mac if not waiting here
+  await new Promise(resolve => setTimeout(resolve, 50))
+  t.is(released, 1)
+
+  const msPassed = performance.now() - startTime
+  t.is(msPassed < 300, true) // (full download would have taken longer)
+})
