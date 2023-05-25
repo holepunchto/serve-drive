@@ -54,7 +54,7 @@ test('getLink handles different path formats', async t => {
   const link2 = serve.getLink('/myFile')
   const link3 = serve.getLink('./myFile')
 
-  const base = `http://localhost:${serve.address().port}`
+  const base = `http://127.0.0.1:${serve.address().port}`
   t.is(link1, link2)
   t.is(link1, link3)
   t.is(link1, `${base}/myFile`)
@@ -67,7 +67,7 @@ test('getLink optional params', async t => {
   const serve = tmpServe(t, () => {})
   await serve.ready()
 
-  const base = `http://localhost:${serve.address().port}`
+  const base = `http://127.0.0.1:${serve.address().port}`
   t.is(serve.getLink('file', 'an-alias'), `${base}/file?drive=an-alias`)
   t.is(serve.getLink('file', null, 5), `${base}/file?checkout=5`)
   t.is(serve.getLink('file', 'an-alias', 5), `${base}/file?drive=an-alias&checkout=5`)
@@ -140,7 +140,7 @@ test('checkout query param (hyperdrive)', async t => {
   // Hangs until future version found
   await t.exception(
     axios.get(
-      `http://localhost:${serve.address().port}/Something?checkout=100`,
+      `http://127.0.0.1:${serve.address().port}/Something?checkout=100`,
       { timeout: 200 }
     ),
     /timeout/
@@ -190,17 +190,17 @@ test('checkout query param ignored for local drive', async t => {
   const serve = tmpServe(t, getDrive, releaseDrive)
   await serve.ready()
 
-  const nowResp = await axios.get(`http://localhost:${serve.address().port}/Something`)
+  const nowResp = await axios.get(`http://127.0.0.1:${serve.address().port}/Something`)
   t.is(nowResp.status, 200)
   t.is(nowResp.data, 'Else')
   t.is(released, 1)
 
-  const oldResp = await axios.get(`http://localhost:${serve.address().port}/Something?checkout=2`)
+  const oldResp = await axios.get(`http://127.0.0.1:${serve.address().port}/Something?checkout=2`)
   t.is(oldResp.status, 200)
   t.is(oldResp.data, 'Else')
   t.is(released, 2)
 
-  const futureResp = await axios.get(`http://localhost:${serve.address().port}/Something?checkout=100`)
+  const futureResp = await axios.get(`http://127.0.0.1:${serve.address().port}/Something?checkout=100`)
   t.is(futureResp.status, 200)
   t.is(futureResp.data, 'Else')
   t.is(released, 3)
