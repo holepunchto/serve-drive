@@ -154,8 +154,10 @@ module.exports = class ServeDrive extends ReadyResource {
     const id = searchParams.get('drive') // String or null
     const filename = decodeURI(pathname)
 
+    let drive = null
+
     try {
-      const drive = await this.getDrive(id, filename)
+      drive = await this.getDrive(id, filename)
       await this._driveToRequest(drive, req, res, filename, id, version)
     } catch (e) {
       safetyCatch(e)
@@ -167,7 +169,7 @@ module.exports = class ServeDrive extends ReadyResource {
         res.end(msg)
       }
     } finally {
-      await this.releaseDrive(id)
+      if (drive !== null) await this.releaseDrive(id)
     }
   }
 }
