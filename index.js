@@ -30,8 +30,6 @@ module.exports = class ServeDrive extends ReadyResource {
   }
 
   async _open () {
-    await Promise.resolve() // Wait a tick, so you don't rely on server.address() being sync sometimes
-
     try {
       await listen(this.server, this.port, this.host)
     } catch (err) {
