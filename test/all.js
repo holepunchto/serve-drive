@@ -105,7 +105,7 @@ test('404 if file not found', async t => {
 
     const res = await request(serve, '/Nothing')
     t.is(res.status, 404)
-    t.is(res.data, 'ENOENT')
+    t.is(res.data, '')
     t.is(released, true)
   }
 })
@@ -267,7 +267,7 @@ test('multiple drives', async t => {
 
   const d = await request(serve, 'file.txt', { id: 'not-exists' })
   t.is(d.status, 404)
-  t.is(d.data, 'DRIVE_NOT_FOUND')
+  t.is(d.data, '')
   t.alike(releases, {
     default: 1,
     'custom-alias': 1,
@@ -328,7 +328,7 @@ test('filter', async function (t) {
 
   const b = await request(serve, 'denied.txt')
   t.is(b.status, 404)
-  t.is(b.data, 'ENOENT')
+  t.is(b.data, '')
   t.alike(releases, {
     default: 2,
     custom: 0
@@ -344,7 +344,7 @@ test('filter', async function (t) {
 
   const d = await request(serve, 'denied.txt', { id: 'custom' })
   t.is(d.status, 404)
-  t.is(d.data, 'ENOENT')
+  t.is(d.data, '')
   t.alike(releases, {
     default: 2,
     custom: 2

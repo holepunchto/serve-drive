@@ -69,7 +69,8 @@ module.exports = class ServeDrive extends ReadyResource {
 
   async _driveToRequest (drive, req, res, filename, id, version) {
     if (!drive) {
-      res.writeHead(404).end('DRIVE_NOT_FOUND')
+      res.writeHead(404)
+      res.end()
       return
     }
 
@@ -79,7 +80,8 @@ module.exports = class ServeDrive extends ReadyResource {
     const isHEAD = req.method === 'HEAD'
 
     if (this._onfilter && !this._onfilter(id, filename)) {
-      res.writeHead(404).end('ENOENT')
+      res.writeHead(404)
+      res.end()
       return
     }
 
@@ -87,19 +89,17 @@ module.exports = class ServeDrive extends ReadyResource {
     try {
       entry = await snapshot.entry(filename)
     } catch (e) {
-      const msg = e.code || e.message
-
-      if (e.code === 'SNAPSHOT_NOT_AVAILABLE') res.writeHead(404)
-      else {
-        this.emit('request-error', e)
-        res.writeHead(500)
+      if (e.code === 'SNAPSHOT_NOT_AVAILABLE') {
+        res.writeHead(404)
+        res.end()
+        return
       }
-      res.end(msg)
-      return
+      throw e // bubble it up
     }
 
     if (!entry || !entry.value.blob) {
-      res.writeHead(404).end('ENOENT')
+      res.writeHead(404)
+      res.end()
       return
     }
 
@@ -144,7 +144,8 @@ module.exports = class ServeDrive extends ReadyResource {
 
   async _onrequest (req, res) {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
-      res.writeHead(400).end()
+      res.writeHead(400)
+      res.end()
       return
     }
 
@@ -171,7 +172,11 @@ module.exports = class ServeDrive extends ReadyResource {
 
     if (error === null) return
 
-    if (!res.headersSent) res.writeHead(500).end()
+    if (!res.headersSent) {
+      res.writeHead(500)
+      res.end()
+    }
+
     this.emit('request-error', error)
   }
 }
