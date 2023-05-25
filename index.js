@@ -155,22 +155,30 @@ module.exports = class ServeDrive extends ReadyResource {
     const filename = decodeURI(pathname)
 
     let drive = null
+    let error = null
 
     try {
       drive = await this.getDrive(id, filename)
       await this._driveToRequest(drive, req, res, filename, id, version)
     } catch (e) {
-      safetyCatch(e)
-      this.emit('request-error', e)
-
-      if (!res.headersSent) {
-        res.writeHead(500)
-        const msg = e.code || e.message
-        res.end(msg)
-      }
-    } finally {
-      if (drive !== null) await this.releaseDrive(id)
+      error = e
     }
+
+    try {
+      if (drive !== null) await this.releaseDrive(id)
+    } catch (e) {
+      error = e
+    }
+
+    if (error === null) return
+
+    if (!res.headersSent) {
+      res.writeHead(500, { 'Content-Type': 'text/plain' })
+      const msg = error.code || error.message
+      res.end(msg)
+    }
+
+    this.emit('request-error', error)
   }
 }
 
