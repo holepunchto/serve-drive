@@ -149,7 +149,7 @@ module.exports = class ServeDrive extends ReadyResource {
       return
     }
 
-    const { pathname, searchParams } = new URL(req.url, 'http://${LOCALHOST}')
+    const { pathname, searchParams } = new URL(req.url, `http://${LOCALHOST}`)
     const version = searchParams.get('checkout')
     const id = searchParams.get('drive') // String or null
     const filename = decodeURI(pathname)
