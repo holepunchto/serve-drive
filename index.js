@@ -6,6 +6,8 @@ const safetyCatch = require('safety-catch')
 const { pipelinePromise } = require('streamx')
 const unixPathResolve = require('unix-path-resolve')
 
+const LOCALHOST = '127.0.0.1'
+
 module.exports = class ServeDrive extends ReadyResource {
   constructor (opts = {}) {
     super()
@@ -21,18 +23,15 @@ module.exports = class ServeDrive extends ReadyResource {
     this.connections = new Set()
     this.server = opts.server || http.createServer()
     this.server.on('request', this._onrequest.bind(this))
-
-    this._onfilter = opts.filter
-  }
-
-  async _open () {
-    await Promise.resolve() // Wait a tick, so you don't rely on server.address() being sync sometimes
-
     this.server.on('connection', c => {
       this.connections.add(c)
       c.on('close', () => this.connections.delete(c))
     })
 
+    this._onfilter = opts.filter || null
+  }
+
+  async _open () {
     try {
       await listen(this.server, this.port, this.host)
     } catch (err) {
@@ -46,7 +45,7 @@ module.exports = class ServeDrive extends ReadyResource {
     for (const c of this.connections) {
       c.destroy()
     }
-    if (this.server.listening) {
+    if (this.opened) {
       await new Promise(resolve => this.server.close(() => resolve()))
     }
   }
@@ -59,7 +58,7 @@ module.exports = class ServeDrive extends ReadyResource {
     path = unixPathResolve('/', path)
     const { port } = this.address()
 
-    let link = `http://localhost:${port}${path}`
+    let link = `http://${LOCALHOST}:${port}${path}`
     if (id || version) link += '?'
     if (id) link += `drive=${id}`
 
@@ -70,7 +69,8 @@ module.exports = class ServeDrive extends ReadyResource {
 
   async _driveToRequest (drive, req, res, filename, id, version) {
     if (!drive) {
-      res.writeHead(404).end('DRIVE_NOT_FOUND')
+      res.writeHead(404)
+      res.end()
       return
     }
 
@@ -80,7 +80,8 @@ module.exports = class ServeDrive extends ReadyResource {
     const isHEAD = req.method === 'HEAD'
 
     if (this._onfilter && !this._onfilter(id, filename)) {
-      res.writeHead(404).end('ENOENT')
+      res.writeHead(404)
+      res.end()
       return
     }
 
@@ -88,19 +89,17 @@ module.exports = class ServeDrive extends ReadyResource {
     try {
       entry = await snapshot.entry(filename)
     } catch (e) {
-      const msg = e.code || e.message
-
-      if (e.code === 'SNAPSHOT_NOT_AVAILABLE') res.writeHead(404)
-      else {
-        this.emit('request-error', e)
-        res.writeHead(500)
+      if (e.code === 'SNAPSHOT_NOT_AVAILABLE') {
+        res.writeHead(404)
+        res.end()
+        return
       }
-      res.end(msg)
-      return
+      throw e // bubble it up
     }
 
     if (!entry || !entry.value.blob) {
-      res.writeHead(404).end('ENOENT')
+      res.writeHead(404)
+      res.end()
       return
     }
 
@@ -145,31 +144,44 @@ module.exports = class ServeDrive extends ReadyResource {
 
   async _onrequest (req, res) {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
-      res.writeHead(400).end()
+      res.writeHead(400)
+      res.end()
       return
     }
 
-    const { pathname, searchParams } = new URL(req.url, 'http://localhost')
+    const { pathname, searchParams } = new URL(req.url, `http://${LOCALHOST}`)
     const version = searchParams.get('checkout')
     const id = searchParams.get('drive') // String or null
     const filename = decodeURI(pathname)
 
-    const drive = await this.getDrive(id, filename)
+    let drive = null
+    let error = null
 
     try {
+      drive = await this.getDrive(id, filename)
       await this._driveToRequest(drive, req, res, filename, id, version)
     } catch (e) {
       safetyCatch(e)
-      this.emit('request-error', e)
-
-      if (!res.headersSent) {
-        res.writeHead(500)
-        const msg = e.code || e.message
-        res.end(msg)
-      }
-    } finally {
-      await this.releaseDrive(id)
+      error = e
     }
+
+    try {
+      if (drive !== null) await this.releaseDrive(id)
+    } catch (e) {
+      safetyCatch(e)
+      // can technically can overwrite the prev error, but we are ok with that as these
+      // are for simple reporting anyway and this is the important one.
+      error = e
+    }
+
+    if (error === null) return
+
+    if (!res.headersSent) {
+      res.writeHead(500)
+      res.end()
+    }
+
+    this.emit('request-error', error)
   }
 }
 
