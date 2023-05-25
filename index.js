@@ -172,12 +172,7 @@ module.exports = class ServeDrive extends ReadyResource {
 
     if (error === null) return
 
-    if (!res.headersSent) {
-      res.writeHead(500, { 'Content-Type': 'text/plain' })
-      const msg = error.code || error.message
-      res.end(msg)
-    }
-
+    if (!res.headersSent) res.writeHead(500).end()
     this.emit('request-error', error)
   }
 }
