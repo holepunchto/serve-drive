@@ -28,7 +28,7 @@ module.exports = class ServeDrive extends ReadyResource {
       c.on('close', () => this.connections.delete(c))
     })
 
-    this._onfilter = opts.filter
+    this._onfilter = opts.filter || null
   }
 
   async _open () {
