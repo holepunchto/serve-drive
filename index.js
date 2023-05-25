@@ -6,6 +6,8 @@ const safetyCatch = require('safety-catch')
 const { pipelinePromise } = require('streamx')
 const unixPathResolve = require('unix-path-resolve')
 
+const LOCALHOST = '127.0.0.1'
+
 module.exports = class ServeDrive extends ReadyResource {
   constructor (opts = {}) {
     super()
@@ -56,7 +58,7 @@ module.exports = class ServeDrive extends ReadyResource {
     path = unixPathResolve('/', path)
     const { port } = this.address()
 
-    let link = `http://localhost:${port}${path}`
+    let link = `http://${LOCALHOST}:${port}${path}`
     if (id || version) link += '?'
     if (id) link += `drive=${id}`
 
@@ -147,7 +149,7 @@ module.exports = class ServeDrive extends ReadyResource {
       return
     }
 
-    const { pathname, searchParams } = new URL(req.url, 'http://localhost')
+    const { pathname, searchParams } = new URL(req.url, 'http://${LOCALHOST}')
     const version = searchParams.get('checkout')
     const id = searchParams.get('drive') // String or null
     const filename = decodeURI(pathname)
