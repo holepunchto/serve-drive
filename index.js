@@ -169,6 +169,8 @@ module.exports = class ServeDrive extends ReadyResource {
       if (drive !== null) await this.releaseDrive(id)
     } catch (e) {
       safetyCatch(e)
+      // can technically can overwrite the prev error, but we are ok with that as these
+      // are for simple reporting anyway and this is the important one.
       error = e
     }
 
