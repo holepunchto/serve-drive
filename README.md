@@ -59,12 +59,26 @@ Creates a HTTP server that serves entries from a `Hyperdrive` or `Localdrive`.
 
 `getDrive` is a required option. Given an id, it should return either a drive or null (indicating the drive is not available)
 
+```
+{
+  async getDrive (id) {
+    // return the drive
+  }
+}
+```
+
 Use the `drive` query param to select which drive to use, i.e. `/filename?drive=<id>`.
 
 Available `options`:
 ```js
 {
-  releaseDrive: (id) => {},
+  async releaseDrive (id, drive) {
+    // release the drive if you want
+  },
+  async filter (id, filename, driveSnapshot) {
+    // if you dont want to serve this file on this drive,
+    // return false, or return true if you wanna
+  },
   port: 7000,
   host: '0.0.0.0',
   anyPort: true,

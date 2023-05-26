@@ -28,7 +28,7 @@ module.exports = class ServeDrive extends ReadyResource {
       c.on('close', () => this.connections.delete(c))
     })
 
-    this._onfilter = opts.filter || null
+    this._onfilter = opts.filter || alwaysTrue
   }
 
   async _open () {
@@ -79,11 +79,13 @@ module.exports = class ServeDrive extends ReadyResource {
 
     const isHEAD = req.method === 'HEAD'
 
-    if (this._onfilter && !this._onfilter(id, filename)) {
+    if (!(await this._onfilter(id, filename, snapshot))) {
       res.writeHead(404)
       res.end()
       return
     }
+
+    if (this.closing) return
 
     let entry
     try {
@@ -96,6 +98,8 @@ module.exports = class ServeDrive extends ReadyResource {
       }
       throw e // bubble it up
     }
+
+    if (this.closing) return
 
     if (!entry || !entry.value.blob) {
       res.writeHead(404)
@@ -166,7 +170,7 @@ module.exports = class ServeDrive extends ReadyResource {
     }
 
     try {
-      if (drive !== null) await this.releaseDrive(id)
+      if (drive !== null) await this.releaseDrive(id, drive)
     } catch (e) {
       safetyCatch(e)
       // can technically can overwrite the prev error, but we are ok with that as these
@@ -174,7 +178,7 @@ module.exports = class ServeDrive extends ReadyResource {
       error = e
     }
 
-    if (error === null) return
+    if (this.closing || error === null) return
 
     if (!res.headersSent) {
       res.writeHead(500)
@@ -204,3 +208,7 @@ function listen (server, port, address) {
 }
 
 function noop () {}
+
+function alwaysTrue () {
+  return true
+}
