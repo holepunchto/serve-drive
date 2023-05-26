@@ -79,7 +79,7 @@ module.exports = class ServeDrive extends ReadyResource {
 
     const isHEAD = req.method === 'HEAD'
 
-    if (this._onfilter && !this._onfilter(id, filename)) {
+    if (this._onfilter && !this._onfilter(id, filename, snapshot)) {
       res.writeHead(404)
       res.end()
       return
@@ -166,7 +166,7 @@ module.exports = class ServeDrive extends ReadyResource {
     }
 
     try {
-      if (drive !== null) await this.releaseDrive(id)
+      if (drive !== null) await this.releaseDrive(id, drive)
     } catch (e) {
       safetyCatch(e)
       // can technically can overwrite the prev error, but we are ok with that as these
