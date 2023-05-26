@@ -68,6 +68,8 @@ module.exports = class ServeDrive extends ReadyResource {
   }
 
   async _driveToRequest (drive, req, res, filename, id, version) {
+    if (this.closing) return
+
     if (!drive) {
       res.writeHead(404)
       res.end()
@@ -79,18 +81,21 @@ module.exports = class ServeDrive extends ReadyResource {
 
     const isHEAD = req.method === 'HEAD'
 
-    if (!(await this._onfilter(id, filename, snapshot))) {
+    const isAllowed = await this._onfilter(id, filename, snapshot)
+    if (this.closing) return
+
+    if (!isAllowed) {
       res.writeHead(404)
       res.end()
       return
     }
 
-    if (this.closing) return
-
     let entry
     try {
       entry = await snapshot.entry(filename)
     } catch (e) {
+      if (this.closing) return
+
       if (e.code === 'SNAPSHOT_NOT_AVAILABLE') {
         res.writeHead(404)
         res.end()
@@ -147,6 +152,8 @@ module.exports = class ServeDrive extends ReadyResource {
   }
 
   async _onrequest (req, res) {
+    if (this.closing) return
+
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.writeHead(400)
       res.end()
