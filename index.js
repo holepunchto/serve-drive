@@ -55,6 +55,7 @@ module.exports = class ServeDrive extends ReadyResource {
   }
 
   getLink (path, id, opts = {}) {
+    if (id && typeof id !== 'string') return this.getLink(path, null, id)
     if (typeof opts === 'number') opts = { version: opts }
 
     const version = opts.version
