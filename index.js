@@ -107,18 +107,21 @@ module.exports = class ServeDrive extends ReadyResource {
 
     const isHEAD = req.method === 'HEAD'
 
-    if (!(await this._onfilter(id, filename, snapshot))) {
+    const isAllowed = await this._onfilter(id, filename, snapshot)
+    if (this.closing) return
+
+    if (!isAllowed) {
       res.writeHead(404)
       res.end()
       return
     }
 
-    if (this.closing) return
-
     let entry
     try {
       entry = await snapshot.entry(filename)
     } catch (e) {
+      if (this.closing) return
+
       if (e.code === 'SNAPSHOT_NOT_AVAILABLE') {
         res.writeHead(404)
         res.end()
@@ -191,6 +194,8 @@ module.exports = class ServeDrive extends ReadyResource {
 
     try {
       drive = await this.getDrive(id, filename)
+
+      if (this.closing) return
       await this._driveToRequest(drive, req, res, filename, id, version)
     } catch (e) {
       safetyCatch(e)
