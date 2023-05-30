@@ -96,7 +96,7 @@ Optional `id` specifies the drive.
 
 `opts` include `version`, to specify a particular version.
 
-`opts` can also be used to return a modified link, which is useful when the service runs behind a reverse proxy. You can specify `protocol` (default http), `domain` and `port` (default to no port).
+`opts` can also be used to return a modified link, which is useful when the service runs behind a reverse proxy. You can specify `protocol` (default http), `domain` and `port` (defaults to no port).
 
 ## License
 
