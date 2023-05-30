@@ -48,6 +48,21 @@ module.exports = class ServeDrive extends ReadyResource {
     if (this.opened) {
       await new Promise(resolve => this.server.close(() => resolve()))
     }
+
+    await new Promise((resolve) => {
+      let waiting = 1
+
+      for (const c of this.connections) {
+        waiting++
+        c.on('close', onclose)
+      }
+
+      onclose()
+
+      function onclose () {
+        if (--waiting === 0) resolve()
+      }
+    })
   }
 
   address () {
