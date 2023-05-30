@@ -68,8 +68,6 @@ module.exports = class ServeDrive extends ReadyResource {
   }
 
   async _driveToRequest (drive, req, res, filename, id, version) {
-    if (this.closing) return
-
     if (!drive) {
       res.writeHead(404)
       res.end()
@@ -168,6 +166,8 @@ module.exports = class ServeDrive extends ReadyResource {
 
     try {
       drive = await this.getDrive(id, filename)
+
+      if (this.closing) return
       await this._driveToRequest(drive, req, res, filename, id, version)
     } catch (e) {
       safetyCatch(e)
