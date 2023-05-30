@@ -77,7 +77,7 @@ test('getLink reverse-proxy usecase', async t => {
   const serve = tmpServe(t, () => {})
   await serve.ready()
 
-  const actual = serve.getLink('file', null, null, { protocol: 'https', domain: 'www.mydrive.org' })
+  const actual = serve.getLink('file', null, { protocol: 'https', domain: 'www.mydrive.org' })
   const expected = 'https://www.mydrive.org/file'
   t.is(actual, expected)
 })
@@ -86,10 +86,10 @@ test('getLink reverse-proxy usecase with port', async t => {
   const serve = tmpServe(t, () => {})
   await serve.ready()
 
-  const actual = serve.getLink('file', null, null, {
-    protocol: 'https', domain: 'www.mydrive.org', port: 40000
+  const actual = serve.getLink('file', null, {
+    protocol: 'https', domain: 'www.mydrive.org', port: 40000, version: 5
   })
-  const expected = 'https://www.mydrive.org:40000/file'
+  const expected = 'https://www.mydrive.org:40000/file?checkout=5'
   t.is(actual, expected)
 })
 
