@@ -73,6 +73,35 @@ test('getLink optional params', async t => {
   t.is(serve.getLink('file', 'an-alias', 5), `${base}/file?drive=an-alias&checkout=5`)
 })
 
+test('getLink reverse-proxy usecase', async t => {
+  const serve = tmpServe(t, () => {})
+  await serve.ready()
+
+  const actual = serve.getLink('file', { protocol: 'https', domain: 'www.mydrive.org' })
+  const expected = 'https://www.mydrive.org/file'
+  t.is(actual, expected)
+})
+
+test('getLink reverse-proxy usecase with id', async t => {
+  const serve = tmpServe(t, () => {})
+  await serve.ready()
+
+  const actual = serve.getLink('file', 'myId', { protocol: 'https', domain: 'www.mydrive.org' })
+  const expected = 'https://www.mydrive.org/file?drive=myId'
+  t.is(actual, expected)
+})
+
+test('getLink reverse-proxy usecase with port', async t => {
+  const serve = tmpServe(t, () => {})
+  await serve.ready()
+
+  const actual = serve.getLink('file', null, {
+    protocol: 'https', domain: 'www.mydrive.org', port: 40000, version: 5
+  })
+  const expected = 'https://www.mydrive.org:40000/file?checkout=5'
+  t.is(actual, expected)
+})
+
 test('emits request-error if unexpected error when getting entry', async t => {
   const drive = tmpHyperdrive(t)
   await drive.close() // Will cause errors
