@@ -152,8 +152,6 @@ module.exports = class ServeDrive extends ReadyResource {
   }
 
   async _onrequest (req, res) {
-    if (this.closing) return
-
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.writeHead(400)
       res.end()
