@@ -54,11 +54,16 @@ module.exports = class ServeDrive extends ReadyResource {
     return this.server.address()
   }
 
-  getLink (path, id, version) {
+  getLink (path, id, version, { protocol = 'http', domain, port } = {}) {
     path = unixPathResolve('/', path)
-    const { port } = this.address()
 
-    let link = `http://${LOCALHOST}:${port}${path}`
+    let link = `${protocol}://`
+
+    link += domain
+      ? domain + (port ? `:${port}` : '')
+      : `${LOCALHOST}:${this.address().port}`
+    link += path
+
     if (id || version) link += '?'
     if (id) link += `drive=${id}`
 

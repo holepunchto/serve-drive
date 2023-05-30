@@ -88,11 +88,13 @@ Available `options`:
 
 The `releaseDrive` function is called with the drive `id` whenever a request finishes.
 
-#### `serve.getLink(path, id, version)`
+#### `serve.getLink(path, id?, version?, opts?)`
 
 Gets a link to the file at the given path.
 
 Optional `id` specifies the drive, and `version` a particular version.
+
+`opts` can be used to return a modified link, which is useful when the service runs behind a reverse proxy. You can specify `protocol` (default http), `domain` or `port` (default to no port)
 
 ## License
 
