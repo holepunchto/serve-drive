@@ -70,15 +70,14 @@ module.exports = class ServeDrive extends ReadyResource {
   getLink (path, opts = {}) {
     const pathname = unixPathResolve('/', path)
     const proto = opts.secure ? 'https' : 'http'
-    const host = opts.host || getHost(this.address().address)
-    const port = opts.port || this.address().port
+    const host = opts.host ? opts.host : (getHost(this.address().address) + ':' + this.address().port)
 
     const params = []
     if (opts.id) params.push('id=' + opts.id)
     if (opts.version) params.push('version=' + opts.version)
     const query = params.length ? ('?' + params.join('&')) : ''
 
-    return proto + '://' + host + ':' + port + pathname + query
+    return proto + '://' + host + pathname + query
   }
 
   async _driveToRequest (drive, req, res, filename, id, version) {
