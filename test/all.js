@@ -19,7 +19,7 @@ test('Can get existing file from drive (default-drive pattern)', async t => {
 
     await drive.put('Something', 'Here')
 
-    const serve = tmpServe(t, getDrive, releaseDrive)
+    const serve = tmpServe(t, { getDrive, releaseDrive })
     await serve.ready()
 
     const res = await request(serve, 'Something')
@@ -39,7 +39,7 @@ test('getDrive passes cleaned up path', async t => {
   }
   await drive.put('Something spacy', 'Here')
 
-  const serve = tmpServe(t, getDrive)
+  const serve = tmpServe(t, { getDrive })
   await serve.ready()
 
   const res = await request(serve, 'Something spacy')
@@ -48,7 +48,7 @@ test('getDrive passes cleaned up path', async t => {
 })
 
 test('getLink handles different path formats', async t => {
-  const serve = tmpServe(t, () => {})
+  const serve = tmpServe(t, { getDrive: noop })
   await serve.ready()
   const link1 = serve.getLink('myFile')
   const link2 = serve.getLink('/myFile')
@@ -64,7 +64,7 @@ test('getLink handles different path formats', async t => {
 })
 
 test('getLink optional params', async t => {
-  const serve = tmpServe(t, () => {})
+  const serve = tmpServe(t, { getDrive: noop })
   await serve.ready()
 
   const base = `http://127.0.0.1:${serve.address().port}`
@@ -74,7 +74,7 @@ test('getLink optional params', async t => {
 })
 
 test('getLink reverse-proxy usecase', async t => {
-  const serve = tmpServe(t, () => {})
+  const serve = tmpServe(t, { getDrive: noop })
   await serve.ready()
 
   const actual = serve.getLink('file', { secure: true, host: 'www.mydrive.org' })
@@ -83,7 +83,7 @@ test('getLink reverse-proxy usecase', async t => {
 })
 
 test('getLink reverse-proxy usecase with id', async t => {
-  const serve = tmpServe(t, () => {})
+  const serve = tmpServe(t, { getDrive: noop })
   await serve.ready()
 
   const actual = serve.getLink('file', { id: 'myId', secure: true, host: 'www.mydrive.org' })
@@ -92,8 +92,7 @@ test('getLink reverse-proxy usecase with id', async t => {
 })
 
 test('getLink reverse-proxy usecase with port', async t => {
-  const serve = tmpServe(t, () => {})
-  await serve.ready()
+  const serve = tmpServe(t, { getDrive: noop })
 
   const actual = serve.getLink('file', { secure: true, host: 'www.mydrive.org', port: 40000, version: 5 })
   const expected = 'https://www.mydrive.org:40000/file?version=5'
@@ -105,7 +104,7 @@ test('emits request-error if unexpected error when getting entry', async t => {
   await drive.close() // Will cause errors
 
   const getDrive = () => drive
-  const serve = tmpServe(t, getDrive)
+  const serve = tmpServe(t, { getDrive })
 
   let errorObj
   serve.on('request-error', e => { errorObj = e })
@@ -127,7 +126,7 @@ test('404 if file not found', async t => {
     const getDrive = () => drive
     const releaseDrive = () => { released = true }
 
-    const serve = tmpServe(t, getDrive, releaseDrive)
+    const serve = tmpServe(t, { getDrive, releaseDrive })
     await serve.ready()
 
     const res = await request(serve, '/Nothing')
@@ -145,7 +144,7 @@ test('checkout query param (hyperdrive)', async t => {
   const getDrive = () => drive
   const releaseDrive = () => { released += 1 }
 
-  const serve = tmpServe(t, getDrive, releaseDrive)
+  const serve = tmpServe(t, { getDrive, releaseDrive })
   await serve.ready()
 
   const origV = drive.version
@@ -191,7 +190,7 @@ test('can handle a non-ready drive', async function (t) {
   const getDrive = () => reDrive
   const releaseDrive = () => { released += 1 }
 
-  const serve = tmpServe(t, getDrive, releaseDrive)
+  const serve = tmpServe(t, { getDrive, releaseDrive })
   await serve.ready()
 
   t.is(reDrive.opened, false)
@@ -214,7 +213,7 @@ test('checkout query param ignored for local drive', async t => {
   const getDrive = () => drive
   const releaseDrive = () => { released += 1 }
 
-  const serve = tmpServe(t, getDrive, releaseDrive)
+  const serve = tmpServe(t, { getDrive, releaseDrive })
   await serve.ready()
 
   const nowResp = await axios.get(`http://127.0.0.1:${serve.address().port}/Something`)
@@ -262,7 +261,7 @@ test('multiple drives', async t => {
     releases[id != null ? id : 'default'] += 1
   }
 
-  const serve = tmpServe(t, getDrive, releaseDrive)
+  const serve = tmpServe(t, { getDrive, releaseDrive })
   await serve.ready()
 
   const a = await request(serve, 'file.txt')
@@ -390,7 +389,7 @@ test('file server does not wait for reqs to finish before closing', async t => {
   const manyBytes = 'a'.repeat(1000 * 1000 * 250)
   await drive.put('Something', manyBytes)
 
-  const serve = tmpServe(t, getDrive, releaseDrive)
+  const serve = tmpServe(t, { getDrive, releaseDrive })
   await serve.ready()
 
   request(serve, 'Something').catch(function () {
@@ -411,3 +410,5 @@ test('file server does not wait for reqs to finish before closing', async t => {
 
   t.is(released, 1)
 })
+
+function noop () {}

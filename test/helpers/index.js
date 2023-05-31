@@ -21,8 +21,8 @@ async function request (serve, path, opts) {
   return axios.get(link, { validateStatus: false })
 }
 
-function tmpServe (t, getDrive, releaseDrive) {
-  const serve = new ServeDrive({ getDrive, releaseDrive })
+function tmpServe (t, opts) {
+  const serve = new ServeDrive(opts)
   t.teardown(() => serve.close())
   return serve
 }
