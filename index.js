@@ -6,8 +6,6 @@ const safetyCatch = require('safety-catch')
 const { pipelinePromise } = require('streamx')
 const unixPathResolve = require('unix-path-resolve')
 
-const LOCALHOST = '127.0.0.1'
-
 module.exports = class ServeDrive extends ReadyResource {
   constructor (opts = {}) {
     super()
@@ -69,30 +67,18 @@ module.exports = class ServeDrive extends ReadyResource {
     return this.server.address()
   }
 
-  getLink (path, id, opts = {}) {
-    if (id && typeof id !== 'string') return this.getLink(path, null, id)
-    if (typeof opts === 'number') opts = { version: opts }
+  getLink (path, opts = {}) {
+    const pathname = unixPathResolve('/', path)
+    const proto = opts.secure ? 'https' : 'http'
+    const host = opts.host || '127.0.0.1'
+    const port = opts.port || this.address().port
 
-    const version = opts.version
-    const protocol = opts.protocol || 'http'
-    const domain = opts.domain
-    const port = opts.port
+    const params = []
+    if (opts.id) params.push('id=' + opts.id)
+    if (opts.version) params.push('version=' + opts.version)
+    const query = params.length ? ('?' + params.join('&')) : ''
 
-    path = unixPathResolve('/', path)
-
-    let link = `${protocol}://`
-
-    link += domain
-      ? domain + (port ? `:${port}` : '')
-      : `${LOCALHOST}:${this.address().port}`
-    link += path
-
-    if (id || version) link += '?'
-    if (id) link += `drive=${id}`
-
-    if (id && version) link += '&'
-    if (version) link += `checkout=${version}`
-    return link
+    return proto + '://' + host + ':' + port + pathname + query
   }
 
   async _driveToRequest (drive, req, res, filename, id, version) {
@@ -184,9 +170,9 @@ module.exports = class ServeDrive extends ReadyResource {
       return
     }
 
-    const { pathname, searchParams } = new URL(req.url, `http://${LOCALHOST}`)
-    const version = searchParams.get('checkout')
-    const id = searchParams.get('drive') // String or null
+    const { pathname, searchParams } = new URL(req.url, 'http://127.0.0.1')
+    const version = searchParams.get('version')
+    const id = searchParams.get('id') // String or null
     const filename = decodeURI(pathname)
 
     let drive = null

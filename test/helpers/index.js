@@ -16,8 +16,8 @@ module.exports = {
   createTmpDir
 }
 
-async function request (serve, path, { id, version } = {}) {
-  const link = serve.getLink(path, id, version)
+async function request (serve, path, opts) {
+  const link = serve.getLink(path, opts)
   return axios.get(link, { validateStatus: false })
 }
 
