@@ -1,25 +1,22 @@
 const test = require('brittle')
-const ServeDrive = require('..')
 const { request, tmpServe, tmpHyperdrive, tmpLocaldrive, localIP } = require('./helpers/index.js')
 const axios = require('axios')
 const RAM = require('random-access-memory')
 const Hyperdrive = require('hyperdrive')
 const Corestore = require('corestore')
-const b4a = require('b4a')
 
 test('Can get existing file from drive (default-drive pattern)', async t => {
   t.plan(2 * 3)
 
   for (const isHyper of [true, false]) {
     const drive = isHyper ? tmpHyperdrive(t) : tmpLocaldrive(t)
-
-    let released = false
-    const getDrive = () => drive
-    const releaseDrive = () => { released = true }
-
     await drive.put('Something', 'Here')
 
-    const serve = tmpServe(t, { getDrive, releaseDrive })
+    let released = false
+    const serve = tmpServe(t, {
+      get: () => drive,
+      release: () => { released = true }
+    })
     await serve.ready()
 
     const res = await request(serve, 'Something')
@@ -29,27 +26,10 @@ test('Can get existing file from drive (default-drive pattern)', async t => {
   }
 })
 
-test('getDrive passes cleaned up path', async t => {
-  const drive = tmpHyperdrive(t)
-
-  let passedPath = null
-  const getDrive = (key, path) => {
-    passedPath = path
-    return drive
-  }
-  await drive.put('Something spacy', 'Here')
-
-  const serve = tmpServe(t, { getDrive })
-  await serve.ready()
-
-  const res = await request(serve, 'Something spacy')
-  t.is(res.data, 'Here')
-  t.is(passedPath, '/Something spacy')
-})
-
 test('getLink handles different path formats', async t => {
-  const serve = tmpServe(t, { getDrive: noop })
+  const serve = tmpServe(t)
   await serve.ready()
+
   const link1 = serve.getLink('myFile')
   const link2 = serve.getLink('/myFile')
   const link3 = serve.getLink('./myFile')
@@ -64,22 +44,22 @@ test('getLink handles different path formats', async t => {
 })
 
 test('getLink optional params', async t => {
-  const serve = tmpServe(t, { getDrive: noop })
+  const serve = tmpServe(t)
   await serve.ready()
 
   const base = `http://127.0.0.1:${serve.address().port}`
-  t.is(serve.getLink('file', { id: 'an-alias' }), `${base}/file?id=an-alias`)
+  t.is(serve.getLink('file', { key: 'an-alias' }), `${base}/file?key=an-alias`)
   t.is(serve.getLink('file', { version: 5 }), `${base}/file?version=5`)
-  t.is(serve.getLink('file', { id: 'an-alias', version: 5 }), `${base}/file?id=an-alias&version=5`)
+  t.is(serve.getLink('file', { key: 'an-alias', version: 5 }), `${base}/file?key=an-alias&version=5`)
   t.is(serve.getLink('file', { https: true }), 'https://127.0.0.1:' + serve.address().port + '/file')
 })
 
 test('getLink reverse-proxy use case', async t => {
-  const serve = tmpServe(t, { getDrive: noop })
+  const serve = tmpServe(t)
   await serve.ready()
 
   t.is(serve.getLink('file', { https: true, host: 'www.mydrive.org' }), 'https://www.mydrive.org/file')
-  t.is(serve.getLink('file', { https: true, host: 'www.mydrive.org', id: 'myId' }), 'https://www.mydrive.org/file?id=myId')
+  t.is(serve.getLink('file', { https: true, host: 'www.mydrive.org', key: 'myId' }), 'https://www.mydrive.org/file?key=myId')
   t.is(serve.getLink('file', { https: true, host: 'www.mydrive.org:40000', version: 5 }), 'https://www.mydrive.org:40000/file?version=5')
 })
 
@@ -87,7 +67,7 @@ test('getLink with different server address', async t => {
   const host = localIP() // => '192.168.0.23'
   if (!host) return t.fail('No local address')
 
-  const serve = tmpServe(t, { host, getDrive: noop })
+  const serve = tmpServe(t, { host })
   await serve.ready()
 
   t.is(serve.getLink('file'), 'http://' + host + ':' + serve.address().port + '/file')
@@ -97,16 +77,15 @@ test('emits request-error if unexpected error when getting entry', async t => {
   const drive = tmpHyperdrive(t)
   await drive.close() // Will cause errors
 
-  const getDrive = () => drive
-  const serve = tmpServe(t, { getDrive })
+  const serve = tmpServe(t, { get: () => drive })
 
-  let errorObj
-  serve.on('request-error', e => { errorObj = e })
+  let error = null
+  serve.on('request-error', e => { error = e })
   await serve.ready()
 
   const res = await request(serve, 'Whatever')
   t.is(res.status, 500)
-  t.is(errorObj.code, 'SESSION_CLOSED')
+  t.is(error.code, 'SESSION_CLOSED')
 })
 
 test('404 if file not found', async t => {
@@ -117,10 +96,10 @@ test('404 if file not found', async t => {
     await drive.ready()
 
     let released = false
-    const getDrive = () => drive
-    const releaseDrive = () => { released = true }
-
-    const serve = tmpServe(t, { getDrive, releaseDrive })
+    const serve = tmpServe(t, {
+      get: () => drive,
+      release: () => { released = true }
+    })
     await serve.ready()
 
     const res = await request(serve, '/Nothing')
@@ -135,14 +114,14 @@ test('checkout query param (hyperdrive)', async t => {
   await drive.put('Something', 'Here')
 
   let released = 0
-  const getDrive = () => drive
-  const releaseDrive = () => { released += 1 }
-
-  const serve = tmpServe(t, { getDrive, releaseDrive })
+  const serve = tmpServe(t, {
+    get: () => drive
+    release: () => { released += 1 }
+  })
   await serve.ready()
 
-  const origV = drive.version
-  t.is(origV, 2) // Sanity check
+  const initialVersion = drive.version
+  t.is(initialVersion, 2) // Sanity check
 
   await drive.put('irrelevant', 'stuff')
   await drive.put('Something', 'Else')
@@ -152,7 +131,7 @@ test('checkout query param (hyperdrive)', async t => {
   t.is(nowResp.data, 'Else')
   t.is(released, 1)
 
-  const oldResp = await request(serve, 'Something', { version: origV })
+  const oldResp = await request(serve, 'Something', { version: initialVersion })
   t.is(oldResp.status, 200)
   t.is(oldResp.data, 'Here')
   t.is(released, 2)
@@ -181,10 +160,10 @@ test('can handle a non-ready drive', async function (t) {
   const reDrive = new Hyperdrive(store.namespace('drive'), key)
 
   let released = 0
-  const getDrive = () => reDrive
-  const releaseDrive = () => { released += 1 }
+  const get = () => reDrive
+  const release = () => { released += 1 }
 
-  const serve = tmpServe(t, { getDrive, releaseDrive })
+  const serve = tmpServe(t, { get, release })
   await serve.ready()
 
   t.is(reDrive.opened, false)
@@ -204,10 +183,10 @@ test('checkout query param ignored for local drive', async t => {
   await drive.put('Something', 'Else')
 
   let released = 0
-  const getDrive = () => drive
-  const releaseDrive = () => { released += 1 }
+  const get = () => drive
+  const release = () => { released += 1 }
 
-  const serve = tmpServe(t, { getDrive, releaseDrive })
+  const serve = tmpServe(t, { get, release })
   await serve.ready()
 
   const nowResp = await axios.get(`http://127.0.0.1:${serve.address().port}/Something`)
@@ -236,26 +215,24 @@ test('multiple drives', async t => {
   await defaultDrive.put('file.txt', 'a')
   await localdrive.put('file.txt', 'b')
   await hyperdrive.put('file.txt', 'c')
-  const hyperdriveId = b4a.toString(hyperdrive.key, 'hex')
 
   const releases = {
     default: 0,
     'custom-alias': 0,
-    [hyperdriveId]: 0
-  }
-  const getDrive = (id) => {
-    if (!id) return defaultDrive
-    if (id === 'custom-alias') return localdrive
-    if (id === hyperdriveId) return hyperdrive
-
-    return null
-  }
-  const releaseDrive = (id) => {
-    if (id && ![...Object.keys(releases)].includes(id)) return
-    releases[id != null ? id : 'default'] += 1
+    [hyperdrive.id]: 0
   }
 
-  const serve = tmpServe(t, { getDrive, releaseDrive })
+  const serve = tmpServe(t, {
+    get ({ key }) {
+      if (!key) return defaultDrive
+      if (key === 'custom-alias') return localdrive
+      if (key === hyperdrive.id) return hyperdrive
+      return null
+    },
+    release ({ key, drive }) {
+      releases[key || 'default']++
+    }
+  })
   await serve.ready()
 
   const a = await request(serve, 'file.txt')
@@ -264,34 +241,34 @@ test('multiple drives', async t => {
   t.alike(releases, {
     default: 1,
     'custom-alias': 0,
-    [hyperdriveId]: 0
+    [hyperdrive.id]: 0
   })
 
-  const b = await request(serve, 'file.txt', { id: 'custom-alias' })
+  const b = await request(serve, 'file.txt', { key: 'custom-alias' })
   t.is(b.status, 200)
   t.is(b.data, 'b')
   t.alike(releases, {
     default: 1,
     'custom-alias': 1,
-    [hyperdriveId]: 0
+    [hyperdrive.id]: 0
   })
 
-  const c = await request(serve, 'file.txt', { id: hyperdriveId })
+  const c = await request(serve, 'file.txt', { key: hyperdrive.id })
   t.is(c.status, 200)
   t.is(c.data, 'c')
   t.alike(releases, {
     default: 1,
     'custom-alias': 1,
-    [hyperdriveId]: 1
+    [hyperdrive.id]: 1
   })
 
-  const d = await request(serve, 'file.txt', { id: 'not-exists' })
+  const d = await request(serve, 'file.txt', { key: 'not-exists' })
   t.is(d.status, 404)
   t.is(d.data, '')
   t.alike(releases, {
     default: 1,
     'custom-alias': 1,
-    [hyperdriveId]: 1
+    [hyperdrive.id]: 1
   })
 })
 
@@ -311,31 +288,26 @@ test('filter', async function (t) {
     default: 0,
     custom: 0
   }
-  const getDrive = (id) => {
-    if (!id) return hyperdrive
-    if (id === 'custom') return localdrive
 
-    return null
-  }
-  const releaseDrive = (id) => {
-    releases[id != null ? id : 'default'] += 1
-  }
-
-  const serve = new ServeDrive({
-    getDrive,
-    releaseDrive,
-    filter: function (id, filename) {
-      if (id === null) t.pass()
-      else if (id === 'custom') t.pass()
-      else t.fail('Wrong drive id')
+  const serve = tmpServe(t, {
+    get ({ key }) {
+      if (!key) return hyperdrive
+      if (key === 'custom') return localdrive
+      return null
+    },
+    release ({ key }) {
+      releases[key || 'default']++
+    },
+    filter: function ({ key, filename, snapshot }) {
+      if (key === null) t.pass()
+      else if (key === 'custom') t.pass()
+      else t.fail('Wrong drive key')
 
       if (filename === '/allowed.txt') return true
       else if (filename === '/denied.txt') return false
       else t.fail('Wrong filename: ' + filename)
     }
   })
-
-  t.teardown(() => serve.close())
   await serve.ready()
 
   const a = await request(serve, 'allowed.txt')
@@ -354,7 +326,7 @@ test('filter', async function (t) {
     custom: 0
   })
 
-  const c = await request(serve, 'allowed.txt', { id: 'custom' })
+  const c = await request(serve, 'allowed.txt', { key: 'custom' })
   t.is(c.status, 200)
   t.is(c.data, 'b1')
   t.alike(releases, {
@@ -362,7 +334,7 @@ test('filter', async function (t) {
     custom: 1
   })
 
-  const d = await request(serve, 'denied.txt', { id: 'custom' })
+  const d = await request(serve, 'denied.txt', { key: 'custom' })
   t.is(d.status, 404)
   t.is(d.data, '')
   t.alike(releases, {
@@ -377,13 +349,13 @@ test('file server does not wait for reqs to finish before closing', async t => {
   const drive = tmpHyperdrive(t)
 
   let released = 0
-  const getDrive = () => drive
-  const releaseDrive = () => { released++ }
+  const get = () => drive
+  const release = () => { released++ }
 
   const manyBytes = 'a'.repeat(1000 * 1000 * 250)
   await drive.put('Something', manyBytes)
 
-  const serve = tmpServe(t, { getDrive, releaseDrive })
+  const serve = tmpServe(t, { get, release })
   await serve.ready()
 
   request(serve, 'Something').catch(function () {
@@ -404,5 +376,3 @@ test('file server does not wait for reqs to finish before closing', async t => {
 
   t.is(released, 1)
 })
-
-function noop () {}

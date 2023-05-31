@@ -10,9 +10,8 @@ module.exports = class ServeDrive extends ReadyResource {
   constructor (opts = {}) {
     super()
 
-    if (!opts.getDrive) throw new Error('Must specify getDrive function')
-    this.getDrive = opts.getDrive
-    this.releaseDrive = opts.releaseDrive || noop
+    this._getDrive = opts.get || noop
+    this._releaseDrive = opts.release || noop
 
     this.port = typeof opts.port !== 'undefined' ? Number(opts.port) : 7000
     this.host = typeof opts.host !== 'undefined' ? opts.host : null
@@ -20,11 +19,8 @@ module.exports = class ServeDrive extends ReadyResource {
 
     this.connections = new Set()
     this.server = opts.server || http.createServer()
+    this.server.on('connection', this._onconnection.bind(this))
     this.server.on('request', this._onrequest.bind(this))
-    this.server.on('connection', c => {
-      this.connections.add(c)
-      c.on('close', () => this.connections.delete(c))
-    })
 
     this._onfilter = opts.filter || alwaysTrue
   }
@@ -73,14 +69,14 @@ module.exports = class ServeDrive extends ReadyResource {
     const host = opts.host ? opts.host : ((this.host || '127.0.0.1') + ':' + this.address().port)
 
     const params = []
-    if (opts.id) params.push('id=' + opts.id)
+    if (opts.key) params.push('key=' + opts.key)
     if (opts.version) params.push('version=' + opts.version)
     const query = params.length ? ('?' + params.join('&')) : ''
 
     return proto + '://' + host + pathname + query
   }
 
-  async _driveToRequest (drive, req, res, filename, id, version) {
+  async _driveToRequest (req, res, { key, drive, filename, version }) {
     if (!drive) {
       res.writeHead(404)
       res.end()
@@ -90,9 +86,8 @@ module.exports = class ServeDrive extends ReadyResource {
     const snapshot = version ? drive.checkout(version) : drive
     if (version) req.on('close', () => snapshot.close().catch(safetyCatch))
 
-    const isHEAD = req.method === 'HEAD'
+    const isAllowed = await this._onfilter({ key, filename, snapshot })
 
-    const isAllowed = await this._onfilter(id, filename, snapshot)
     if (this.closing) return
 
     if (!isAllowed) {
@@ -153,13 +148,18 @@ module.exports = class ServeDrive extends ReadyResource {
       res.setHeader('Content-Length', entry.value.blob.byteLength)
     }
 
-    if (isHEAD) {
+    if (req.method === 'HEAD') {
       res.end()
       return
     }
 
     const rs = snapshot.createReadStream(filename, { start, length })
     await pipelinePromise(rs, res)
+  }
+
+  _onconnection (socket) {
+    this.connections.add(socket)
+    socket.on('close', () => this.connections.delete(socket))
   }
 
   async _onrequest (req, res) {
@@ -171,27 +171,28 @@ module.exports = class ServeDrive extends ReadyResource {
 
     const { pathname, searchParams } = new URL(req.url, 'http://127.0.0.1')
     const version = searchParams.get('version')
-    const id = searchParams.get('id') // String or null
+    const key = searchParams.get('key') // String or null
     const filename = decodeURI(pathname)
 
     let drive = null
     let error = null
 
     try {
-      drive = await this.getDrive(id, filename)
+      drive = await this._getDrive({ key })
 
-      if (this.closing) return
-      await this._driveToRequest(drive, req, res, filename, id, version)
+      if (!this.closing) {
+        await this._driveToRequest(req, res, { key, drive, filename, version })
+      }
     } catch (e) {
       safetyCatch(e)
       error = e
     }
 
     try {
-      if (drive !== null) await this.releaseDrive(id, drive)
+      if (drive !== null) await this._releaseDrive({ key, drive })
     } catch (e) {
       safetyCatch(e)
-      // can technically can overwrite the prev error, but we are ok with that as these
+      // Can technically overwrite the prev error, but we are ok with that as these
       // are for simple reporting anyway and this is the important one.
       error = e
     }
