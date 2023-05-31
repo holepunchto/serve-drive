@@ -114,12 +114,14 @@ test('404 if file not found', async function (t) {
 })
 
 test('checkout query param (hyperdrive)', async function (t) {
+  t.plan(9)
+
   const drive = tmpHyperdrive(t)
 
   let released = 0
   const serve = tmpServe(t, {
     get: () => drive,
-    release: () => released++
+    release: () => t.pass(`Released drive ${++released} of 3`)
   })
   await serve.ready()
 
@@ -133,17 +135,13 @@ test('checkout query param (hyperdrive)', async function (t) {
   const res1 = await request(serve, '/file.txt')
   t.is(res1.status, 200)
   t.is(res1.data, 'b')
-  t.is(released, 1)
 
   const res2 = await request(serve, '/file.txt', { version: initialVersion })
   t.is(res2.status, 200)
   t.is(res2.data, 'a')
-  t.is(released, 2)
 
   // Hangs until future version found
   await t.exception(axios.get(serve.getLink('/file.txt', { version: 100 }), { timeout: 500 }), /timeout/)
-  await new Promise(resolve => setTimeout(resolve, 200))
-  t.is(released, 3)
 })
 
 test('can handle a non-ready drive', async function (t) {
