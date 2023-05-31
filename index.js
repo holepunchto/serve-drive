@@ -70,7 +70,7 @@ module.exports = class ServeDrive extends ReadyResource {
   getLink (path, opts = {}) {
     const pathname = unixPathResolve('/', path)
     const proto = opts.secure ? 'https' : 'http'
-    const host = opts.host || '127.0.0.1'
+    const host = opts.host || getHost(this.address().address)
     const port = opts.port || this.address().port
 
     const params = []
@@ -230,4 +230,9 @@ function noop () {}
 
 function alwaysTrue () {
   return true
+}
+
+function getHost (addr) {
+  if (addr === '::' || addr === '0.0.0.0') return '127.0.0.1'
+  return addr
 }
