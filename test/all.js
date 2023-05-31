@@ -71,16 +71,16 @@ test('getLink optional params', async t => {
   t.is(serve.getLink('file', { id: 'an-alias' }), `${base}/file?id=an-alias`)
   t.is(serve.getLink('file', { version: 5 }), `${base}/file?version=5`)
   t.is(serve.getLink('file', { id: 'an-alias', version: 5 }), `${base}/file?id=an-alias&version=5`)
-  t.is(serve.getLink('file', { secure: true }), 'https://127.0.0.1:' + serve.address().port + '/file')
+  t.is(serve.getLink('file', { https: true }), 'https://127.0.0.1:' + serve.address().port + '/file')
 })
 
 test('getLink reverse-proxy use case', async t => {
   const serve = tmpServe(t, { getDrive: noop })
   await serve.ready()
 
-  t.is(serve.getLink('file', { secure: true, host: 'www.mydrive.org' }), 'https://www.mydrive.org/file')
-  t.is(serve.getLink('file', { secure: true, host: 'www.mydrive.org', id: 'myId' }), 'https://www.mydrive.org/file?id=myId')
-  t.is(serve.getLink('file', { secure: true, host: 'www.mydrive.org:40000', version: 5 }), 'https://www.mydrive.org:40000/file?version=5')
+  t.is(serve.getLink('file', { https: true, host: 'www.mydrive.org' }), 'https://www.mydrive.org/file')
+  t.is(serve.getLink('file', { https: true, host: 'www.mydrive.org', id: 'myId' }), 'https://www.mydrive.org/file?id=myId')
+  t.is(serve.getLink('file', { https: true, host: 'www.mydrive.org:40000', version: 5 }), 'https://www.mydrive.org:40000/file?version=5')
 })
 
 test('getLink with different server address', async t => {
