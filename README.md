@@ -95,11 +95,10 @@ Gets a link to the file at the given path.
 `options` includes:
 ```js
 {
+  secure: false, // Set it to true to use https, or by default false for http
+  host: '', // Custom host + port (default is server address:port i.e. 127.0.0.1:7000)
   id: '', // Drive id or key
-  version: 0, // Checkout the drive into a previous point
-  host: '', // Custom host like a domain or IP (default is 127.0.0.1)
-  port: 0, // Custom port number (default is the server port)
-  secure: false // Set it to true to use https, or by default false for http
+  version: 0 // Checkout the drive into a previous point
 }
 ```
 
