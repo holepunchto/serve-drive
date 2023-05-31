@@ -1,6 +1,6 @@
 const test = require('brittle')
 const ServeDrive = require('..')
-const { request, tmpServe, tmpHyperdrive, tmpLocaldrive } = require('./helpers/index.js')
+const { request, tmpServe, tmpHyperdrive, tmpLocaldrive, localIP } = require('./helpers/index.js')
 const axios = require('axios')
 const RAM = require('random-access-memory')
 const Hyperdrive = require('hyperdrive')
@@ -97,6 +97,16 @@ test('getLink reverse-proxy usecase with port', async t => {
   const actual = serve.getLink('file', { secure: true, host: 'www.mydrive.org', port: 40000, version: 5 })
   const expected = 'https://www.mydrive.org:40000/file?version=5'
   t.is(actual, expected)
+})
+
+test('getLink with different server address', async t => {
+  const host = localIP() // => '192.168.0.23'
+  if (!host) return t.fail('No local address')
+
+  const serve = tmpServe(t, { host, getDrive: noop })
+  await serve.ready()
+
+  t.is(serve.getLink('file'), 'http://' + host + ':' + serve.address().port + '/file')
 })
 
 test('emits request-error if unexpected error when getting entry', async t => {
