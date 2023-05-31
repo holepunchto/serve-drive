@@ -96,7 +96,7 @@ Gets a link to the file at the given path.
 ```js
 {
   https: false, // Set it to true to use https (default is false)
-  host: '', // Custom host + port (default is server address:port i.e. 127.0.0.1:7000)
+  host: '', // Custom host + port (default is 127.0.0.1:server-port)
   id: '', // Drive id or key
   version: 0 // Checkout the drive into a previous point
 }
