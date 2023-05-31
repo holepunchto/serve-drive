@@ -5,77 +5,81 @@ const RAM = require('random-access-memory')
 const Hyperdrive = require('hyperdrive')
 const Corestore = require('corestore')
 
-test('Can get existing file from drive (default-drive pattern)', async t => {
+test('Can get existing file from drive (default-drive pattern)', async function (t) {
   t.plan(2 * 3)
 
   for (const isHyper of [true, false]) {
     const drive = isHyper ? tmpHyperdrive(t) : tmpLocaldrive(t)
-    await drive.put('Something', 'Here')
+    await drive.put('/file.txt', 'Here')
 
-    let released = false
+    let released = 0
     const serve = tmpServe(t, {
       get: () => drive,
-      release: () => { released = true }
+      release: () => released++
     })
     await serve.ready()
 
-    const res = await request(serve, 'Something')
+    const res = await request(serve, '/file.txt')
     t.is(res.status, 200)
     t.is(res.data, 'Here')
-    t.is(released, true)
+    t.is(released, 1)
   }
 })
 
-test('getLink handles different path formats', async t => {
+test('getLink handles different path formats', async function (t) {
   const serve = tmpServe(t)
   await serve.ready()
+
+  const base = `http://127.0.0.1:${serve.address().port}`
 
   const link1 = serve.getLink('myFile')
   const link2 = serve.getLink('/myFile')
   const link3 = serve.getLink('./myFile')
+  const link4 = serve.getLink('/my//File')
+  const link5 = serve.getLink('/myDir/myFile.txt')
 
-  const base = `http://127.0.0.1:${serve.address().port}`
   t.is(link1, link2)
   t.is(link1, link3)
   t.is(link1, `${base}/myFile`)
-
-  const link4 = serve.getLink('/myDir/myFile.txt')
-  t.is(link4, `${base}/myDir/myFile.txt`)
+  t.is(link4, `${base}/my/File`)
+  t.is(link5, `${base}/myDir/myFile.txt`)
 })
 
-test('getLink optional params', async t => {
+test('getLink optional params', async function (t) {
   const serve = tmpServe(t)
   await serve.ready()
 
   const base = `http://127.0.0.1:${serve.address().port}`
-  t.is(serve.getLink('file', { key: 'an-alias' }), `${base}/file?key=an-alias`)
-  t.is(serve.getLink('file', { version: 5 }), `${base}/file?version=5`)
-  t.is(serve.getLink('file', { key: 'an-alias', version: 5 }), `${base}/file?key=an-alias&version=5`)
-  t.is(serve.getLink('file', { https: true }), 'https://127.0.0.1:' + serve.address().port + '/file')
+  const baseSecure = `https://127.0.0.1:${serve.address().port}`
+
+  t.is(serve.getLink('/file.txt', { key: 'an-alias' }), `${base}/file.txt?key=an-alias`)
+  t.is(serve.getLink('/file.txt', { version: 5 }), `${base}/file.txt?version=5`)
+  t.is(serve.getLink('/file.txt', { key: 'an-alias', version: 5 }), `${base}/file.txt?key=an-alias&version=5`)
+  t.is(serve.getLink('/file.txt', { https: true }), `${baseSecure}/file.txt`)
 })
 
-test('getLink reverse-proxy use case', async t => {
+test('getLink reverse-proxy use case', async function (t) {
   const serve = tmpServe(t)
   await serve.ready()
 
-  t.is(serve.getLink('file', { https: true, host: 'www.mydrive.org' }), 'https://www.mydrive.org/file')
-  t.is(serve.getLink('file', { https: true, host: 'www.mydrive.org', key: 'myId' }), 'https://www.mydrive.org/file?key=myId')
-  t.is(serve.getLink('file', { https: true, host: 'www.mydrive.org:40000', version: 5 }), 'https://www.mydrive.org:40000/file?version=5')
+  t.is(serve.getLink('/file.txt', { host: 'www.mydrive.org' }), 'http://www.mydrive.org/file.txt')
+  t.is(serve.getLink('/file.txt', { https: true, host: 'www.mydrive.org', key: 'myId' }), 'https://www.mydrive.org/file.txt?key=myId')
+  t.is(serve.getLink('/file.txt', { https: true, host: 'www.mydrive.org:40000', version: 5 }), 'https://www.mydrive.org:40000/file.txt?version=5')
 })
 
-test('getLink with different server address', async t => {
+test('getLink with different server address', async function (t) {
   const host = localIP() // => '192.168.0.23'
   if (!host) return t.fail('No local address')
 
   const serve = tmpServe(t, { host })
   await serve.ready()
 
-  t.is(serve.getLink('file'), 'http://' + host + ':' + serve.address().port + '/file')
+  t.is(serve.getLink('/file.txt'), 'http://' + host + ':' + serve.address().port + '/file.txt')
 })
 
-test('emits request-error if unexpected error when getting entry', async t => {
+test('emits request-error if unexpected error when getting entry', async function (t) {
   const drive = tmpHyperdrive(t)
-  await drive.close() // Will cause errors
+  await drive.close() // Will cause session closed
 
   const serve = tmpServe(t, { get: () => drive })
 
@@ -83,129 +87,117 @@ test('emits request-error if unexpected error when getting entry', async t => {
   serve.on('request-error', e => { error = e })
   await serve.ready()
 
-  const res = await request(serve, 'Whatever')
+  const res = await request(serve, '/whatever')
   t.is(res.status, 500)
   t.is(error.code, 'SESSION_CLOSED')
 })
 
-test('404 if file not found', async t => {
+test('404 if file not found', async function (t) {
   t.plan(2 * 3)
 
   for (const isHyper of [true, false]) {
     const drive = isHyper ? tmpHyperdrive(t) : tmpLocaldrive(t)
     await drive.ready()
 
-    let released = false
+    let released = 0
     const serve = tmpServe(t, {
       get: () => drive,
-      release: () => { released = true }
+      release: () => released++
     })
     await serve.ready()
 
-    const res = await request(serve, '/Nothing')
+    const res = await request(serve, '/nothing')
     t.is(res.status, 404)
     t.is(res.data, '')
-    t.is(released, true)
+    t.is(released, 1)
   }
 })
 
-test('checkout query param (hyperdrive)', async t => {
+test('checkout query param (hyperdrive)', async function (t) {
   const drive = tmpHyperdrive(t)
-  await drive.put('Something', 'Here')
 
   let released = 0
   const serve = tmpServe(t, {
-    get: () => drive
-    release: () => { released += 1 }
+    get: () => drive,
+    release: () => released++
   })
   await serve.ready()
 
+  await drive.put('/file.txt', 'a')
+
   const initialVersion = drive.version
-  t.is(initialVersion, 2) // Sanity check
+  t.is(initialVersion, 2)
 
-  await drive.put('irrelevant', 'stuff')
-  await drive.put('Something', 'Else')
+  await drive.put('/file.txt', 'b')
 
-  const nowResp = await request(serve, 'Something')
-  t.is(nowResp.status, 200)
-  t.is(nowResp.data, 'Else')
+  const res1 = await request(serve, '/file.txt')
+  t.is(res1.status, 200)
+  t.is(res1.data, 'b')
   t.is(released, 1)
 
-  const oldResp = await request(serve, 'Something', { version: initialVersion })
-  t.is(oldResp.status, 200)
-  t.is(oldResp.data, 'Here')
+  const res2 = await request(serve, '/file.txt', { version: initialVersion })
+  t.is(res2.status, 200)
+  t.is(res2.data, 'a')
   t.is(released, 2)
 
   // Hangs until future version found
-  await t.exception(
-    axios.get(
-      `http://127.0.0.1:${serve.address().port}/Something?version=100`,
-      { timeout: 200 }
-    ),
-    /timeout/
-  )
-  // TODO: investigate (await snapshot.entry(...) hang forever
-  // despite the snapshot being closed
-  // t.is(released, 3)
+  await t.exception(axios.get(serve.getLink('/file.txt', { version: 100 }), { timeout: 500 }), /timeout/)
+  await new Promise(resolve => setTimeout(resolve, 200))
+  t.is(released, 3)
 })
 
 test('can handle a non-ready drive', async function (t) {
   const store = new Corestore(RAM.reusable())
   const drive = new Hyperdrive(store.namespace('drive'))
-  await drive.put('file', 'here')
-  const key = drive.key
-
+  await drive.put('/file.txt', 'here')
   await drive.close()
 
-  const reDrive = new Hyperdrive(store.namespace('drive'), key)
-
   let released = 0
-  const get = () => reDrive
-  const release = () => { released += 1 }
-
-  const serve = tmpServe(t, { get, release })
+  const serve = tmpServe(t, {
+    get: () => clone,
+    release: () => released++
+  })
   await serve.ready()
 
-  t.is(reDrive.opened, false)
-  // drive is not ready but key is sync => no error
-  // serve.add(reDrive)
+  const clone = new Hyperdrive(store.namespace('drive'), drive.key)
+  t.is(clone.opened, false)
 
-  const resp = await request(serve, 'file')
-  t.is(resp.status, 200)
-  t.is(resp.data, 'here')
+  const res = await request(serve, '/file.txt')
+  t.is(res.status, 200)
+  t.is(res.data, 'here')
   t.is(released, 1)
 })
 
-test('checkout query param ignored for local drive', async t => {
+test('checkout query param ignored for local drive', async function (t) {
   const drive = tmpLocaldrive(t)
-  await drive.put('Something', 'Here')
-  await drive.put('irrelevant', 'stuff')
-  await drive.put('Something', 'Else')
+  await drive.put('/file.txt', 'Here')
+  await drive.put('/another.txt', 'Stuff')
+  await drive.put('/file.txt', 'Else')
 
   let released = 0
-  const get = () => drive
-  const release = () => { released += 1 }
-
-  const serve = tmpServe(t, { get, release })
+  const serve = tmpServe(t, {
+    get: () => drive,
+    release: () => released++
+  })
   await serve.ready()
 
-  const nowResp = await axios.get(`http://127.0.0.1:${serve.address().port}/Something`)
-  t.is(nowResp.status, 200)
-  t.is(nowResp.data, 'Else')
+  const res1 = await request(serve, '/file.txt')
+  t.is(res1.status, 200)
+  t.is(res1.data, 'Else')
   t.is(released, 1)
 
-  const oldResp = await axios.get(`http://127.0.0.1:${serve.address().port}/Something?version=2`)
-  t.is(oldResp.status, 200)
-  t.is(oldResp.data, 'Else')
+  const res2 = await request(serve, '/file.txt', { version: 2 })
+  t.is(res2.status, 200)
+  t.is(res2.data, 'Else')
   t.is(released, 2)
 
-  const futureResp = await axios.get(`http://127.0.0.1:${serve.address().port}/Something?version=100`)
-  t.is(futureResp.status, 200)
-  t.is(futureResp.data, 'Else')
+  const res3 = await request(serve, '/file.txt', { version: 100 })
+  t.is(res3.status, 200)
+  t.is(res3.data, 'Else')
   t.is(released, 3)
 })
 
-test('multiple drives', async t => {
+test('multiple drives', async function (t) {
   t.plan(4 * 3)
 
   const defaultDrive = tmpHyperdrive(t)
@@ -343,22 +335,22 @@ test('filter', async function (t) {
   })
 })
 
-test('file server does not wait for reqs to finish before closing', async t => {
+test('file server does not wait for reqs to finish before closing', async function (t) {
   t.plan(3)
 
   const drive = tmpHyperdrive(t)
 
+  const manyBytes = 'a'.repeat(256 * 1024 * 1024)
+  await drive.put('/file.txt', manyBytes)
+
   let released = 0
-  const get = () => drive
-  const release = () => { released++ }
-
-  const manyBytes = 'a'.repeat(1000 * 1000 * 250)
-  await drive.put('Something', manyBytes)
-
-  const serve = tmpServe(t, { get, release })
+  const serve = tmpServe(t, {
+    get: () => drive,
+    release: () => released++
+  })
   await serve.ready()
 
-  request(serve, 'Something').catch(function () {
+  request(serve, '/file.txt').catch(function () {
     t.pass('request should fail')
   })
 
