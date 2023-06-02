@@ -76,7 +76,7 @@ module.exports = class ServeDrive extends ReadyResource {
     return proto + '://' + host + pathname + query
   }
 
-  async _driveToRequest (req, res, { key, drive, filename, version }) {
+  async _driveToRequest (req, res, key, drive, filename, version) {
     if (!drive) {
       res.writeHead(404)
       res.end()
@@ -86,7 +86,7 @@ module.exports = class ServeDrive extends ReadyResource {
     const snapshot = version ? drive.checkout(version) : drive
     if (version) req.on('close', () => snapshot.close().catch(safetyCatch))
 
-    const isAllowed = await this._onfilter({ key, filename, snapshot })
+    const isAllowed = await this._onfilter({ key, filename, drive: snapshot })
 
     if (this.closing) return
 
@@ -181,7 +181,7 @@ module.exports = class ServeDrive extends ReadyResource {
       drive = await this._getDrive({ key })
 
       if (!this.closing) {
-        await this._driveToRequest(req, res, { key, drive, filename, version })
+        await this._driveToRequest(req, res, key, drive, filename, version)
       }
     } catch (e) {
       safetyCatch(e)

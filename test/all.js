@@ -263,7 +263,7 @@ test('multiple drives', async function (t) {
 })
 
 test('filter', async function (t) {
-  t.plan(4 * 4)
+  t.plan(4 * 5)
 
   const hyperdrive = tmpHyperdrive(t)
   const localdrive = tmpLocaldrive(t)
@@ -288,7 +288,9 @@ test('filter', async function (t) {
     release ({ key }) {
       releases[key || 'default']++
     },
-    filter: function ({ key, filename, snapshot }) {
+    filter: function ({ key, filename, drive }) {
+      t.is(typeof drive, 'object')
+
       if (key === null) t.pass()
       else if (key === 'custom') t.pass()
       else t.fail('Wrong drive key')

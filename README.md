@@ -67,7 +67,7 @@ Available `options`:
 {
   async get ({ key }) {}, // Return the drive or null
   async release ({ key, drive }) {}, // Called after finishing a request to optionally release the drive
-  async filter ({ key, filename, snapshot }) {}, // Return true to allow serving the file, otherwise false
+  async filter ({ key, filename, drive }) {}, // Return true to allow serving the file, otherwise false
   port: 7000,
   host: '0.0.0.0',
   anyPort: true,
@@ -75,9 +75,11 @@ Available `options`:
 }
 ```
 
-#### `serve.getLink(path, [options])`
+Note for `filter` option: `drive` is a snapshot in the specific version if set.
 
-Gets a link to the file at the given path.
+#### `serve.getLink(filename, [options])`
+
+Generates the full API link to a file.
 
 `options` includes:
 ```js
