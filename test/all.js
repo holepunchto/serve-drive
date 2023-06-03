@@ -5,7 +5,7 @@ const RAM = require('random-access-memory')
 const Hyperdrive = require('hyperdrive')
 const Corestore = require('corestore')
 
-test('Can get existing file from drive (default-drive pattern)', async function (t) {
+test('can get existing file from drive (default-drive pattern)', async function (t) {
   t.plan(2 * 3)
 
   for (const isHyper of [true, false]) {
@@ -27,6 +27,8 @@ test('Can get existing file from drive (default-drive pattern)', async function 
 })
 
 test('getLink handles different path formats', async function (t) {
+  t.plan(5)
+
   const serve = tmpServe(t)
   await serve.ready()
 
@@ -46,6 +48,8 @@ test('getLink handles different path formats', async function (t) {
 })
 
 test('getLink optional params', async function (t) {
+  t.plan(4)
+
   const serve = tmpServe(t)
   await serve.ready()
 
@@ -59,6 +63,8 @@ test('getLink optional params', async function (t) {
 })
 
 test('getLink reverse-proxy use case', async function (t) {
+  t.plan(3)
+
   const serve = tmpServe(t)
   await serve.ready()
 
@@ -67,7 +73,21 @@ test('getLink reverse-proxy use case', async function (t) {
   t.is(serve.getLink('/file.txt', { https: true, host: 'www.mydrive.org:40000', version: 5 }), 'https://www.mydrive.org:40000/file.txt?version=5')
 })
 
+test('getLink with global address', async function (t) {
+  t.plan(2)
+
+  const a = tmpServe(t, { host: '0.0.0.0' })
+  await a.ready()
+  t.is(a.getLink('/file.txt'), 'http://localhost:' + a.address().port + '/file.txt')
+
+  const b = tmpServe(t, { host: '::' })
+  await b.ready()
+  t.is(b.getLink('/file.txt'), 'http://localhost:' + b.address().port + '/file.txt')
+})
+
 test('getLink with different server address', async function (t) {
+  t.plan(1)
+
   const host = localIP() // => '192.168.0.23'
   if (!host) return t.fail('No local address')
 
@@ -78,6 +98,8 @@ test('getLink with different server address', async function (t) {
 })
 
 test('emits request-error if unexpected error when getting entry', async function (t) {
+  t.plan(2)
+
   const drive = tmpHyperdrive(t)
   await drive.close() // Will cause session closed
 
@@ -145,6 +167,8 @@ test('checkout query param (hyperdrive)', async function (t) {
 })
 
 test('can handle a non-ready drive', async function (t) {
+  t.plan(4)
+
   const store = new Corestore(RAM.reusable())
   const drive = new Hyperdrive(store.namespace('drive'))
   await drive.put('/file.txt', 'here')
@@ -167,6 +191,8 @@ test('can handle a non-ready drive', async function (t) {
 })
 
 test('checkout query param ignored for local drive', async function (t) {
+  t.plan(9)
+
   const drive = tmpLocaldrive(t)
   await drive.put('/file.txt', 'Here')
   await drive.put('/another.txt', 'Stuff')
@@ -254,10 +280,10 @@ test('multiple drives', async function (t) {
   })
 })
 
-test('filter', async function (t) {
-  t.plan(4 * 3)
+test('filter by using get hook', async function (t) {
+  t.plan(14)
 
-  const drive1 = tmpLocaldrive(t)
+  const drive1 = tmpHyperdrive(t)
   const drive2 = tmpHyperdrive(t)
 
   await drive1.put('/allowed.txt', 'a1')
@@ -280,7 +306,9 @@ test('filter', async function (t) {
       else if (key.equals(drive2.key)) return drive2
       else t.fail('Wrong drive key')
     },
-    release ({ key }) {
+    release ({ key, drive }) {
+      if (!key) t.ok(drive === drive1)
+      else t.ok(drive === drive2)
       releases[key ? key.toString('hex') : 'default']++
     }
   })
@@ -319,6 +347,39 @@ test('filter', async function (t) {
   })
 })
 
+test('version in get hook', async function (t) {
+  t.plan(7)
+
+  const drive = tmpHyperdrive(t)
+
+  await drive.put('/a.txt', 'a')
+  await drive.put('/b.txt', 'b')
+
+  let expected = 0
+
+  const serve = tmpServe(t, {
+    get ({ key, filename, version }) {
+      if (++expected === 1) t.is(version, null)
+      else if (++expected === 2) t.is(version, 3)
+      else if (++expected === 3) t.is(version, 2)
+      return drive
+    }
+  })
+  await serve.ready()
+
+  const a = await request(serve, 'a.txt')
+  t.is(a.status, 200)
+  t.is(a.data, 'a')
+
+  const b = await request(serve, 'b.txt', { version: 3 })
+  t.is(b.status, 200)
+  t.is(b.data, 'b')
+
+  const c = await request(serve, 'b.txt', { version: 2 })
+  t.is(c.status, 404)
+  t.is(c.data, '')
+})
+
 test('file server does not wait for reqs to finish before closing', async function (t) {
   t.plan(3)
 
@@ -351,4 +412,27 @@ test('file server does not wait for reqs to finish before closing', async functi
   await serve.close()
 
   t.is(released, 1)
+})
+
+test('get hook returning different than null still calls release hook', async function (t) {
+  t.plan(5)
+
+  const drive = tmpHyperdrive(t)
+  await drive.put('/file.txt', 'abc')
+
+  const serve = tmpServe(t, {
+    get ({ key, filename, version }) {
+      t.pass()
+      return 0
+    },
+    release ({ key, drive }) {
+      t.is(key, null)
+      t.is(drive, 0)
+    }
+  })
+  await serve.ready()
+
+  const res = await request(serve, '/file.txt')
+  t.is(res.status, 404)
+  t.is(res.data, '')
 })

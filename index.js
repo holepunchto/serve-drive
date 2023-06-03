@@ -11,7 +11,7 @@ module.exports = class ServeDrive extends ReadyResource {
   constructor (opts = {}) {
     super()
 
-    this._getDrive = opts.get || noop
+    this._getDrive = opts.get || nool
     this._releaseDrive = opts.release || noop
 
     this.port = typeof opts.port !== 'undefined' ? Number(opts.port) : 7000
@@ -65,8 +65,7 @@ module.exports = class ServeDrive extends ReadyResource {
   getLink (path, opts = {}) {
     const pathname = unixPathResolve('/', path)
     const proto = opts.https ? 'https' : 'http'
-    const host = opts.host ? opts.host : ((this.host || '127.0.0.1') + ':' + this.address().port)
-    // Problem here if new ServeDrive({ host: '0.0.0.0' }) or '::'
+    const host = opts.host ? opts.host : (getHost(this.host || '127.0.0.1') + ':' + this.address().port)
 
     const params = []
     if (opts.key) params.push('key=' + opts.key)
@@ -234,4 +233,10 @@ function listen (server, port, address) {
   })
 }
 
+function nool () { return null }
 function noop () {}
+
+function getHost (address) {
+  if (address === '::' || address === '0.0.0.0') return 'localhost'
+  return address
+}
