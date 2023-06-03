@@ -255,9 +255,9 @@ test('multiple drives', async function (t) {
 })
 
 test('filter', async function (t) {
-  t.plan(4 * 5)
+  t.plan(4 * 3)
 
-  const drive1 = tmpHyperdrive(t)
+  const drive1 = tmpLocaldrive(t)
   const drive2 = tmpHyperdrive(t)
 
   await drive1.put('/allowed.txt', 'a1')
@@ -272,24 +272,16 @@ test('filter', async function (t) {
   }
 
   const serve = tmpServe(t, {
-    get ({ key }) {
+    get ({ key, filename, version }) {
+      if (filename === '/denied.txt') return null
+      else if (filename !== '/allowed.txt') t.fail('Wrong filename: ' + filename)
+
       if (key === null) return drive1
-      if (key.equals(drive2.key)) return drive2
-      return null
+      else if (key.equals(drive2.key)) return drive2
+      else t.fail('Wrong drive key')
     },
     release ({ key }) {
       releases[key ? key.toString('hex') : 'default']++
-    },
-    filter: function ({ key, filename, drive }) {
-      t.is(typeof drive, 'object')
-
-      if (key === null) t.pass()
-      else if (key.equals(drive2.key)) t.pass()
-      else t.fail('Wrong drive key')
-
-      if (filename === '/allowed.txt') return true
-      else if (filename === '/denied.txt') return false
-      else t.fail('Wrong filename: ' + filename)
     }
   })
   await serve.ready()
@@ -306,7 +298,7 @@ test('filter', async function (t) {
   t.is(b.status, 404)
   t.is(b.data, '')
   t.alike(releases, {
-    default: 2,
+    default: 1,
     [drive2.key.toString('hex')]: 0
   })
 
@@ -314,7 +306,7 @@ test('filter', async function (t) {
   t.is(c.status, 200)
   t.is(c.data, 'b1')
   t.alike(releases, {
-    default: 2,
+    default: 1,
     [drive2.key.toString('hex')]: 1
   })
 
@@ -322,8 +314,8 @@ test('filter', async function (t) {
   t.is(d.status, 404)
   t.is(d.data, '')
   t.alike(releases, {
-    default: 2,
-    [drive2.key.toString('hex')]: 2
+    default: 1,
+    [drive2.key.toString('hex')]: 1
   })
 })
 

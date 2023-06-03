@@ -62,17 +62,14 @@ Available query params:
 Available `options`:
 ```js
 {
-  async get ({ key }) {}, // Return the drive or null
+  async get ({ key, filename, version }) {}, // Return the drive or null
   async release ({ key, drive }) {}, // Called after finishing a request to optionally release the drive
-  async filter ({ key, filename, drive }) {}, // Return true to allow serving the file, otherwise false
   port: 7000,
   host: '0.0.0.0',
   anyPort: true,
   server: null
 }
 ```
-
-Note for `filter` option: `drive` is a snapshot in the specific version if set.
 
 #### `serve.getLink(filename, [options])`
 

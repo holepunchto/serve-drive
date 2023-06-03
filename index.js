@@ -22,8 +22,6 @@ module.exports = class ServeDrive extends ReadyResource {
     this.server = opts.server || http.createServer()
     this.server.on('connection', this._onconnection.bind(this))
     this.server.on('request', this._onrequest.bind(this))
-
-    this._onfilter = opts.filter || alwaysTrue
   }
 
   async _open () {
@@ -86,17 +84,7 @@ module.exports = class ServeDrive extends ReadyResource {
     }
 
     const snapshot = version ? drive.checkout(version) : drive
-    if (version) req.on('close', () => snapshot.close().catch(safetyCatch))
-
-    const isAllowed = await this._onfilter({ key, filename, drive: snapshot })
-
-    if (this.closing) return
-
-    if (!isAllowed) {
-      res.writeHead(404)
-      res.end()
-      return
-    }
+    if (snapshot !== drive) req.on('close', () => snapshot.close().catch(safetyCatch))
 
     let entry
     try {
@@ -198,7 +186,7 @@ module.exports = class ServeDrive extends ReadyResource {
     let error = null
 
     try {
-      drive = await this._getDrive({ key })
+      drive = await this._getDrive({ key, filename, version })
 
       if (!this.closing) {
         await this._driveToRequest(req, res, key, drive, filename, version)
@@ -247,7 +235,3 @@ function listen (server, port, address) {
 }
 
 function noop () {}
-
-function alwaysTrue () {
-  return true
-}
