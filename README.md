@@ -79,7 +79,7 @@ Generates the full API link to a file.
 ```js
 {
   https: false, // Set it to true to use https (default is false)
-  host: '', // Custom host + port (default is 127.0.0.1:server-port)
+  host: '', // Custom host + port (default is localhost:server-port)
   key: '', // Drive id or key
   version: 0 // Checkout the drive into a previous point
 }

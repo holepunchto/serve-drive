@@ -32,7 +32,7 @@ test('getLink handles different path formats', async function (t) {
   const serve = tmpServe(t)
   await serve.ready()
 
-  const base = `http://127.0.0.1:${serve.address().port}`
+  const base = `http://localhost:${serve.address().port}`
 
   const link1 = serve.getLink('myFile')
   const link2 = serve.getLink('/myFile')
@@ -53,8 +53,8 @@ test('getLink optional params', async function (t) {
   const serve = tmpServe(t)
   await serve.ready()
 
-  const base = `http://127.0.0.1:${serve.address().port}`
-  const baseSecure = `https://127.0.0.1:${serve.address().port}`
+  const base = `http://localhost:${serve.address().port}`
+  const baseSecure = `https://localhost:${serve.address().port}`
 
   t.is(serve.getLink('/file.txt', { key: 'an-alias' }), `${base}/file.txt?key=an-alias`)
   t.is(serve.getLink('/file.txt', { version: 5 }), `${base}/file.txt?version=5`)
