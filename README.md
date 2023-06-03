@@ -16,7 +16,7 @@ const Localdrive = require('localdrive')
 const drive = new Localdrive('./my-folder')
 await drive.put('/index.html', Buffer.from('hi'))
 
-const serve = new ServeDrive({ get: () => drive })
+const serve = new ServeDrive({ get: ({ key, filename, version }) => drive })
 await serve.ready()
 console.log('Listening on http://localhost:' + serve.address().port)
 
@@ -36,7 +36,7 @@ await drive1.put('/index.html', Buffer.from('a'))
 await drive2.put('/index.html', Buffer.from('b'))
 
 const serve = new ServeDrive({
-  get ({ key }) {
+  get ({ key, filename, version }) {
     if (key === null) return drive1 // Default
     if (key.equals(drive2.key)) return drive2
     return null
