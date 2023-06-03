@@ -198,101 +198,93 @@ test('checkout query param ignored for local drive', async function (t) {
 test('multiple drives', async function (t) {
   t.plan(4 * 3)
 
-  const defaultDrive = tmpHyperdrive(t)
   const localdrive = tmpLocaldrive(t)
   const hyperdrive = tmpHyperdrive(t)
 
-  await defaultDrive.put('file.txt', 'a')
-  await localdrive.put('file.txt', 'b')
-  await hyperdrive.put('file.txt', 'c')
+  await localdrive.put('/file.txt', 'a')
+  await hyperdrive.put('/file.txt', 'b')
 
   const releases = {
     default: 0,
-    'custom-alias': 0,
-    [hyperdrive.id]: 0
+    [hyperdrive.key.toString('hex')]: 0
   }
 
   const serve = tmpServe(t, {
     get ({ key }) {
-      if (!key) return defaultDrive
-      if (key === 'custom-alias') return localdrive
-      if (key === hyperdrive.id) return hyperdrive
+      if (key === null) return localdrive
+      if (key.equals(hyperdrive.key)) return hyperdrive
       return null
     },
     release ({ key, drive }) {
-      releases[key || 'default']++
+      releases[key ? key.toString('hex') : 'default']++
     }
   })
   await serve.ready()
 
-  const a = await request(serve, 'file.txt')
+  const a = await request(serve, '/file.txt')
   t.is(a.status, 200)
   t.is(a.data, 'a')
   t.alike(releases, {
     default: 1,
-    'custom-alias': 0,
-    [hyperdrive.id]: 0
+    [hyperdrive.key.toString('hex')]: 0
   })
 
-  const b = await request(serve, 'file.txt', { key: 'custom-alias' })
+  const b = await request(serve, '/file.txt', { key: hyperdrive.id })
   t.is(b.status, 200)
   t.is(b.data, 'b')
   t.alike(releases, {
     default: 1,
-    'custom-alias': 1,
-    [hyperdrive.id]: 0
+    [hyperdrive.key.toString('hex')]: 1
   })
 
-  const c = await request(serve, 'file.txt', { key: hyperdrive.id })
-  t.is(c.status, 200)
-  t.is(c.data, 'c')
+  const c = await request(serve, '/file.txt', { key: '178krw3n5xzot1rn8s6m1gjjbp1co6pfy7yfukmueh7qbxa58ryo' })
+  t.is(c.status, 404)
+  t.is(c.data, '')
   t.alike(releases, {
     default: 1,
-    'custom-alias': 1,
-    [hyperdrive.id]: 1
+    [hyperdrive.key.toString('hex')]: 1
   })
 
-  const d = await request(serve, 'file.txt', { key: 'not-exists' })
-  t.is(d.status, 404)
+  const d = await request(serve, '/file.txt', { key: 'invalid-key' })
+  t.is(d.status, 400)
   t.is(d.data, '')
   t.alike(releases, {
     default: 1,
-    'custom-alias': 1,
-    [hyperdrive.id]: 1
+    [hyperdrive.key.toString('hex')]: 1
   })
 })
 
 test('filter', async function (t) {
   t.plan(4 * 5)
 
-  const hyperdrive = tmpHyperdrive(t)
-  const localdrive = tmpLocaldrive(t)
+  const drive1 = tmpHyperdrive(t)
+  const drive2 = tmpHyperdrive(t)
 
-  await hyperdrive.put('/allowed.txt', 'a1')
-  await hyperdrive.put('/denied.txt', '0')
+  await drive1.put('/allowed.txt', 'a1')
+  await drive1.put('/denied.txt', '0')
 
-  await localdrive.put('/allowed.txt', 'b1')
-  await localdrive.put('/denied.txt', '0')
+  await drive2.put('/allowed.txt', 'b1')
+  await drive2.put('/denied.txt', '0')
 
   const releases = {
     default: 0,
-    custom: 0
+    [drive2.key.toString('hex')]: 0
   }
 
   const serve = tmpServe(t, {
     get ({ key }) {
-      if (!key) return hyperdrive
-      if (key === 'custom') return localdrive
+      if (key === null) return drive1
+      if (key.equals(drive2.key)) return drive2
       return null
     },
     release ({ key }) {
-      releases[key || 'default']++
+      releases[key ? key.toString('hex') : 'default']++
     },
     filter: function ({ key, filename, drive }) {
       t.is(typeof drive, 'object')
 
       if (key === null) t.pass()
-      else if (key === 'custom') t.pass()
+      else if (key.equals(drive2.key)) t.pass()
       else t.fail('Wrong drive key')
 
       if (filename === '/allowed.txt') return true
@@ -307,7 +299,7 @@ test('filter', async function (t) {
   t.is(a.data, 'a1')
   t.alike(releases, {
     default: 1,
-    custom: 0
+    [drive2.key.toString('hex')]: 0
   })
 
   const b = await request(serve, 'denied.txt')
@@ -315,23 +307,23 @@ test('filter', async function (t) {
   t.is(b.data, '')
   t.alike(releases, {
     default: 2,
-    custom: 0
+    [drive2.key.toString('hex')]: 0
   })
 
-  const c = await request(serve, 'allowed.txt', { key: 'custom' })
+  const c = await request(serve, 'allowed.txt', { key: drive2.id })
   t.is(c.status, 200)
   t.is(c.data, 'b1')
   t.alike(releases, {
     default: 2,
-    custom: 1
+    [drive2.key.toString('hex')]: 1
   })
 
-  const d = await request(serve, 'denied.txt', { key: 'custom' })
+  const d = await request(serve, 'denied.txt', { key: drive2.id })
   t.is(d.status, 404)
   t.is(d.data, '')
   t.alike(releases, {
     default: 2,
-    custom: 2
+    [drive2.key.toString('hex')]: 2
   })
 })
 

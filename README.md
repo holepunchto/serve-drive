@@ -30,18 +30,15 @@ const Hyperdrive = require('hyperdrive')
 const Corestore = require('corestore')
 
 const drive1 = new Localdrive('./my-folder-a')
-const drive2 = new Localdrive('./my-folder-b')
-const drive3 = new Hyperdrive(new Corestore('store'))
+const drive2 = new Hyperdrive(new Corestore('./store1'))
 
 await drive1.put('/index.html', Buffer.from('a'))
 await drive2.put('/index.html', Buffer.from('b'))
-await drive3.put('/index.html', Buffer.from('c'))
 
 const serve = new ServeDrive({
-  get ({ key, filename }) {
-    if (key === null) return drive1 // default
-    if (key === 'custom-alias') return drive2
-    if (key === drive3.key.toString('hex')) return drive3
+  get ({ key }) {
+    if (key === null) return drive1 // Default
+    if (key.equals(drive2.key)) return drive2
     return null
   }
 })
@@ -49,7 +46,7 @@ const serve = new ServeDrive({
 await serve.ready()
 console.log('Listening on http://localhost:' + serve.address().port)
 
-// Try visiting http://localhost:7000/index.html?key=custom-alias
+// Try visiting http://localhost:7000/index.html?key=<id-or-key>
 ```
 
 ## API
@@ -59,7 +56,7 @@ console.log('Listening on http://localhost:' + serve.address().port)
 Creates a HTTP server that serves entries from a `Hyperdrive` or `Localdrive`.
 
 Available query params:
-- `key` to select which drive to use i.e. `/filename?key=<id>`.
+- `key` to select which drive to use i.e. `/filename?key=<id-or-key>`.
 - `version` to checkout into a specific point i.e. `/filename?version=<v>`.
 
 Available `options`:

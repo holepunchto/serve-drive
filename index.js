@@ -5,6 +5,7 @@ const ReadyResource = require('ready-resource')
 const safetyCatch = require('safety-catch')
 const { pipelinePromise } = require('streamx')
 const unixPathResolve = require('unix-path-resolve')
+const HypercoreId = require('hypercore-id-encoding')
 
 module.exports = class ServeDrive extends ReadyResource {
   constructor (opts = {}) {
@@ -67,6 +68,7 @@ module.exports = class ServeDrive extends ReadyResource {
     const pathname = unixPathResolve('/', path)
     const proto = opts.https ? 'https' : 'http'
     const host = opts.host ? opts.host : ((this.host || '127.0.0.1') + ':' + this.address().port)
+    // Problem here if new ServeDrive({ host: '0.0.0.0' }) or '::'
 
     const params = []
     if (opts.key) params.push('key=' + opts.key)
@@ -107,7 +109,8 @@ module.exports = class ServeDrive extends ReadyResource {
         res.end()
         return
       }
-      throw e // bubble it up
+
+      throw e
     }
 
     if (this.closing) return
@@ -170,9 +173,26 @@ module.exports = class ServeDrive extends ReadyResource {
     }
 
     const { pathname, searchParams } = new URL(req.url, 'http://127.0.0.1')
-    const version = searchParams.get('version')
-    const key = searchParams.get('key') // String or null
     const filename = decodeURI(pathname)
+    let key = searchParams.get('key') || null
+    const version = searchParams.get('version') // String or null
+
+    if (key !== null) {
+      try {
+        key = HypercoreId.decode(key)
+      } catch (err) {
+        safetyCatch(err)
+        res.writeHead(400)
+        res.end()
+        return
+      }
+    }
+
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      res.writeHead(400)
+      res.end()
+      return
+    }
 
     let drive = null
     let error = null

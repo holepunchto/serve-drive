@@ -4,7 +4,7 @@
   "description": "HTTP drive server for entries delivery. Auto detects types like video, images, etc",
   "main": "index.js",
   "scripts": {
-    "test": "standard && brittle test/*.js --coverage"
+    "test": "standard && brittle test/*.js"
   },
   "repository": {
     "type": "git",
@@ -26,6 +26,7 @@
     "standard": "^17.0.0"
   },
   "dependencies": {
+    "hypercore-id-encoding": "^1.0.2",
     "mime-types": "^2.1.35",
     "range-parser": "^1.2.1",
     "ready-resource": "^1.0.0",
