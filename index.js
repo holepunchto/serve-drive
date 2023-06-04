@@ -34,23 +34,16 @@ module.exports = class ServeDrive extends ReadyResource {
     }
   }
 
-  async _close () {
-    for (const c of this.connections) {
-      c.destroy()
-    }
-    if (this.opened) {
-      await new Promise(resolve => this.server.close(() => resolve()))
-    }
-
-    await new Promise((resolve) => {
+  _close () {
+    return new Promise(resolve => {
       let waiting = 1
+      this.server.close(onclose)
 
       for (const c of this.connections) {
         waiting++
         c.on('close', onclose)
+        c.destroy()
       }
-
-      onclose()
 
       function onclose () {
         if (--waiting === 0) resolve()
@@ -59,13 +52,13 @@ module.exports = class ServeDrive extends ReadyResource {
   }
 
   address () {
-    return this.server.address()
+    return this.opened ? this.server.address() : null
   }
 
   getLink (path, opts = {}) {
-    const pathname = unixPathResolve('/', path)
     const proto = opts.https ? 'https' : 'http'
-    const host = opts.host ? opts.host : (getHost(this.host) + ':' + this.address().port)
+    const host = opts.host || (getHost(this.host) + ':' + this.address().port)
+    const pathname = unixPathResolve('/', path)
 
     const params = []
     if (opts.key) params.push('key=' + opts.key)
