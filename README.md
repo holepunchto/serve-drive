@@ -16,7 +16,7 @@ const Localdrive = require('localdrive')
 const drive = new Localdrive('./my-folder')
 await drive.put('/index.html', Buffer.from('hi'))
 
-const serve = new ServeDrive({ getDrive: (id, filename) => drive })
+const serve = new ServeDrive({ get: ({ key, filename, version }) => drive })
 await serve.ready()
 console.log('Listening on http://localhost:' + serve.address().port)
 
@@ -30,25 +30,23 @@ const Hyperdrive = require('hyperdrive')
 const Corestore = require('corestore')
 
 const drive1 = new Localdrive('./my-folder-a')
-const drive2 = new Localdrive('./my-folder-b')
-const drive3 = new Hyperdrive(new Corestore('store'))
+const drive2 = new Hyperdrive(new Corestore('./store1'))
 
 await drive1.put('/index.html', Buffer.from('a'))
 await drive2.put('/index.html', Buffer.from('b'))
-await drive3.put('/index.html', Buffer.from('c'))
 
-const getDrive = (id, filename) => {
-  if (id == null) return drive1 // default
-  if (id === 'custom-alias') return drive2
-  if (id === drive3.key.toString('hex')) return drive3
-  return null
-}
-const serve = new ServeDrive({ getDrive })
+const serve = new ServeDrive({
+  get ({ key, filename, version }) {
+    if (key === null) return drive1 // Default
+    if (key.equals(drive2.key)) return drive2
+    return null
+  }
+})
 
 await serve.ready()
 console.log('Listening on http://localhost:' + serve.address().port)
 
-// Try visiting http://localhost:7000/index.html?drive=custom-alias
+// Try visiting http://localhost:7000/index.html?key=<id-or-key>
 ```
 
 ## API
@@ -57,28 +55,15 @@ console.log('Listening on http://localhost:' + serve.address().port)
 
 Creates a HTTP server that serves entries from a `Hyperdrive` or `Localdrive`.
 
-`getDrive` is a required option. Given an id, it should return either a drive or null (indicating the drive is not available)
-
-```
-{
-  async getDrive (id) {
-    // return the drive
-  }
-}
-```
-
-Use the `drive` query param to select which drive to use, i.e. `/filename?drive=<id>`.
+Available query params:
+- `key` to select which drive to use i.e. `/filename?key=<id-or-key>`.
+- `version` to checkout into a specific point i.e. `/filename?version=<v>`.
 
 Available `options`:
 ```js
 {
-  async releaseDrive (id, drive) {
-    // release the drive if you want
-  },
-  async filter (id, filename, driveSnapshot) {
-    // if you dont want to serve this file on this drive,
-    // return false, or return true if you wanna
-  },
+  async get ({ key, filename, version }) {}, // Return the drive or null
+  async release ({ key, drive }) {}, // Called after finishing a request to optionally release the drive
   port: 7000,
   host: '0.0.0.0',
   anyPort: true,
@@ -86,17 +71,19 @@ Available `options`:
 }
 ```
 
-The `releaseDrive` function is called with the drive `id` whenever a request finishes.
+#### `serve.getLink(filename, [options])`
 
-#### `serve.getLink(path, id?, opts?)`
+Generates the full API link to a file.
 
-Gets a link to the file at the given path.
-
-Optional `id` specifies the drive.
-
-`opts` include `version`, to specify a particular version.
-
-`opts` can also be used to return a modified link, which is useful when the service runs behind a reverse proxy. You can specify `protocol` (default http), `domain` and `port` (defaults to no port).
+`options` includes:
+```js
+{
+  https: false, // Set it to true to use https (default is false)
+  host: '', // Custom host + port (default is localhost:server-port)
+  key: '', // Drive id or key
+  version: 0 // Checkout the drive into a previous point
+}
+```
 
 ## License
 

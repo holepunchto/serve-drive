@@ -5,16 +5,14 @@ const ReadyResource = require('ready-resource')
 const safetyCatch = require('safety-catch')
 const { pipelinePromise } = require('streamx')
 const unixPathResolve = require('unix-path-resolve')
-
-const LOCALHOST = '127.0.0.1'
+const HypercoreId = require('hypercore-id-encoding')
 
 module.exports = class ServeDrive extends ReadyResource {
   constructor (opts = {}) {
     super()
 
-    if (!opts.getDrive) throw new Error('Must specify getDrive function')
-    this.getDrive = opts.getDrive
-    this.releaseDrive = opts.releaseDrive || noop
+    this._getDrive = opts.get || nool
+    this._releaseDrive = opts.release || noop
 
     this.port = typeof opts.port !== 'undefined' ? Number(opts.port) : 7000
     this.host = typeof opts.host !== 'undefined' ? opts.host : null
@@ -22,13 +20,8 @@ module.exports = class ServeDrive extends ReadyResource {
 
     this.connections = new Set()
     this.server = opts.server || http.createServer()
+    this.server.on('connection', this._onconnection.bind(this))
     this.server.on('request', this._onrequest.bind(this))
-    this.server.on('connection', c => {
-      this.connections.add(c)
-      c.on('close', () => this.connections.delete(c))
-    })
-
-    this._onfilter = opts.filter || alwaysTrue
   }
 
   async _open () {
@@ -41,23 +34,16 @@ module.exports = class ServeDrive extends ReadyResource {
     }
   }
 
-  async _close () {
-    for (const c of this.connections) {
-      c.destroy()
-    }
-    if (this.opened) {
-      await new Promise(resolve => this.server.close(() => resolve()))
-    }
-
-    await new Promise((resolve) => {
+  _close () {
+    return new Promise(resolve => {
       let waiting = 1
+      this.server.close(onclose)
 
       for (const c of this.connections) {
         waiting++
         c.on('close', onclose)
+        c.destroy()
       }
-
-      onclose()
 
       function onclose () {
         if (--waiting === 0) resolve()
@@ -66,36 +52,23 @@ module.exports = class ServeDrive extends ReadyResource {
   }
 
   address () {
-    return this.server.address()
+    return this.opened ? this.server.address() : null
   }
 
-  getLink (path, id, opts = {}) {
-    if (id && typeof id !== 'string') return this.getLink(path, null, id)
-    if (typeof opts === 'number') opts = { version: opts }
+  getLink (path, opts = {}) {
+    const proto = opts.https ? 'https' : 'http'
+    const host = opts.host || (getHost(this.host) + ':' + this.address().port)
+    const pathname = unixPathResolve('/', path)
 
-    const version = opts.version
-    const protocol = opts.protocol || 'http'
-    const domain = opts.domain
-    const port = opts.port
+    const params = []
+    if (opts.key) params.push('key=' + opts.key)
+    if (opts.version) params.push('version=' + opts.version)
+    const query = params.length ? ('?' + params.join('&')) : ''
 
-    path = unixPathResolve('/', path)
-
-    let link = `${protocol}://`
-
-    link += domain
-      ? domain + (port ? `:${port}` : '')
-      : `${LOCALHOST}:${this.address().port}`
-    link += path
-
-    if (id || version) link += '?'
-    if (id) link += `drive=${id}`
-
-    if (id && version) link += '&'
-    if (version) link += `checkout=${version}`
-    return link
+    return proto + '://' + host + pathname + query
   }
 
-  async _driveToRequest (drive, req, res, filename, id, version) {
+  async _driveToRequest (req, res, key, drive, filename, version) {
     if (!drive) {
       res.writeHead(404)
       res.end()
@@ -103,18 +76,7 @@ module.exports = class ServeDrive extends ReadyResource {
     }
 
     const snapshot = version ? drive.checkout(version) : drive
-    if (version) req.on('close', () => snapshot.close().catch(safetyCatch))
-
-    const isHEAD = req.method === 'HEAD'
-
-    const isAllowed = await this._onfilter(id, filename, snapshot)
-    if (this.closing) return
-
-    if (!isAllowed) {
-      res.writeHead(404)
-      res.end()
-      return
-    }
+    if (snapshot !== drive) req.on('close', () => snapshot.close().catch(safetyCatch))
 
     let entry
     try {
@@ -127,7 +89,8 @@ module.exports = class ServeDrive extends ReadyResource {
         res.end()
         return
       }
-      throw e // bubble it up
+
+      throw e
     }
 
     if (this.closing) return
@@ -168,13 +131,18 @@ module.exports = class ServeDrive extends ReadyResource {
       res.setHeader('Content-Length', entry.value.blob.byteLength)
     }
 
-    if (isHEAD) {
+    if (req.method === 'HEAD') {
       res.end()
       return
     }
 
     const rs = snapshot.createReadStream(filename, { start, length })
     await pipelinePromise(rs, res)
+  }
+
+  _onconnection (socket) {
+    this.connections.add(socket)
+    socket.on('close', () => this.connections.delete(socket))
   }
 
   async _onrequest (req, res) {
@@ -184,29 +152,53 @@ module.exports = class ServeDrive extends ReadyResource {
       return
     }
 
-    const { pathname, searchParams } = new URL(req.url, `http://${LOCALHOST}`)
-    const version = searchParams.get('checkout')
-    const id = searchParams.get('drive') // String or null
+    const { pathname, searchParams } = new URL(req.url, 'http://127.0.0.1')
     const filename = decodeURI(pathname)
+    let key = searchParams.get('key') // String or null
+    const version = parseInt(searchParams.get('version') || 0, 10)
+
+    if (key !== null) {
+      try {
+        key = HypercoreId.decode(key)
+      } catch (err) {
+        safetyCatch(err)
+        res.writeHead(400)
+        res.end()
+        return
+      }
+    }
+
+    if (Number.isNaN(version)) {
+      res.writeHead(400)
+      res.end()
+      return
+    }
+
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      res.writeHead(400)
+      res.end()
+      return
+    }
 
     let drive = null
     let error = null
 
     try {
-      drive = await this.getDrive(id, filename)
+      drive = await this._getDrive({ key, filename, version })
 
-      if (this.closing) return
-      await this._driveToRequest(drive, req, res, filename, id, version)
+      if (!this.closing) {
+        await this._driveToRequest(req, res, key, drive, filename, version)
+      }
     } catch (e) {
       safetyCatch(e)
       error = e
     }
 
     try {
-      if (drive !== null) await this.releaseDrive(id, drive)
+      if (drive !== null) await this._releaseDrive({ key, drive })
     } catch (e) {
       safetyCatch(e)
-      // can technically can overwrite the prev error, but we are ok with that as these
+      // Can technically overwrite the prev error, but we are ok with that as these
       // are for simple reporting anyway and this is the important one.
       error = e
     }
@@ -240,8 +232,10 @@ function listen (server, port, address) {
   })
 }
 
+function nool () { return null }
 function noop () {}
 
-function alwaysTrue () {
-  return true
+function getHost (address) {
+  if (!address || address === '::' || address === '0.0.0.0') return 'localhost'
+  return address
 }
