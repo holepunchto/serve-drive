@@ -155,7 +155,7 @@ module.exports = class ServeDrive extends ReadyResource {
     const { pathname, searchParams } = new URL(req.url, 'http://127.0.0.1')
     const filename = decodeURI(pathname)
     let key = searchParams.get('key') // String or null
-    const version = parseInt(searchParams.get('version'), 10) || 0
+    const version = parseInt(searchParams.get('version') || 0, 10)
 
     if (key !== null) {
       try {
@@ -166,6 +166,12 @@ module.exports = class ServeDrive extends ReadyResource {
         res.end()
         return
       }
+    }
+
+    if (Number.isNaN(version)) {
+      res.writeHead(400)
+      res.end()
+      return
     }
 
     if (req.method !== 'GET' && req.method !== 'HEAD') {
