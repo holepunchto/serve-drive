@@ -13,8 +13,7 @@ module.exports = {
   tmpServe,
   tmpHyperdrive,
   tmpLocaldrive,
-  createTmpDir,
-  localIP
+  createTmpDir
 }
 
 async function request (serve, path, opts) {
@@ -54,10 +53,4 @@ async function rmdir (dir) {
     if (error.code === 'ENOENT') return
     throw error
   }
-}
-
-function localIP () {
-  const ifaces = Object.values(os.networkInterfaces()).flat()
-  const addrs = ifaces.filter(iface => !iface.internal && iface.family === 'IPv4')
-  return addrs.length ? addrs[0].address : null
 }

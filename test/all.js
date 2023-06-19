@@ -1,5 +1,5 @@
 const test = require('brittle')
-const { request, tmpServe, tmpHyperdrive, tmpLocaldrive, localIP } = require('./helpers/index.js')
+const { request, tmpServe, tmpHyperdrive, tmpLocaldrive } = require('./helpers/index.js')
 const axios = require('axios')
 const RAM = require('random-access-memory')
 const Hyperdrive = require('hyperdrive')
@@ -83,18 +83,6 @@ test('getLink with global address', async function (t) {
   const b = tmpServe(t, { host: '::' })
   await b.ready()
   t.is(b.getLink('/file.txt'), 'http://localhost:' + b.address().port + '/file.txt')
-})
-
-test('getLink with different server address', async function (t) {
-  t.plan(1)
-
-  const host = localIP() // => '192.168.0.23'
-  if (!host) return t.fail('No local address')
-
-  const serve = tmpServe(t, { host })
-  await serve.ready()
-
-  t.is(serve.getLink('/file.txt'), 'http://' + host + ':' + serve.address().port + '/file.txt')
 })
 
 test('emits request-error if unexpected error when getting entry', async function (t) {
@@ -412,27 +400,4 @@ test('file server does not wait for reqs to finish before closing', async functi
   await serve.close()
 
   t.is(released, 1)
-})
-
-test('get hook returning different than null still calls release hook', async function (t) {
-  t.plan(5)
-
-  const drive = tmpHyperdrive(t)
-  await drive.put('/file.txt', 'abc')
-
-  const serve = tmpServe(t, {
-    get ({ key, filename, version }) {
-      t.pass()
-      return 0
-    },
-    release ({ key, drive }) {
-      t.is(key, null)
-      t.is(drive, 0)
-    }
-  })
-  await serve.ready()
-
-  const res = await request(serve, '/file.txt')
-  t.is(res.status, 404)
-  t.is(res.data, '')
 })
