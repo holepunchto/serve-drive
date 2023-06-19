@@ -154,8 +154,8 @@ module.exports = class ServeDrive extends ReadyResource {
 
     const { pathname, searchParams } = new URL(req.url, 'http://127.0.0.1')
     const filename = decodeURI(pathname)
-    let key = searchParams.get('key') || null
-    const version = searchParams.get('version') // String or null
+    let key = searchParams.get('key') // String or null
+    const version = parseInt(searchParams.get('version'), 10) || 0
 
     if (key !== null) {
       try {

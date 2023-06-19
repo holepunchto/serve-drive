@@ -336,7 +336,7 @@ test('filter by using get hook', async function (t) {
 })
 
 test('version in get hook', async function (t) {
-  t.plan(7)
+  t.plan(10)
 
   const drive = tmpHyperdrive(t)
 
@@ -347,9 +347,10 @@ test('version in get hook', async function (t) {
 
   const serve = tmpServe(t, {
     get ({ key, filename, version }) {
-      if (++expected === 1) t.is(version, null)
-      else if (++expected === 2) t.is(version, 3)
-      else if (++expected === 3) t.is(version, 2)
+      if (++expected === 1) t.is(version, 0)
+      if (++expected === 2) t.is(version, 0)
+      else if (++expected === 3) t.is(version, 3)
+      else if (++expected === 4) t.is(version, 2)
       return drive
     }
   })
@@ -359,13 +360,17 @@ test('version in get hook', async function (t) {
   t.is(a.status, 200)
   t.is(a.data, 'a')
 
-  const b = await request(serve, 'b.txt', { version: 3 })
+  const b = await request(serve, 'a.txt', { version: 0 })
   t.is(b.status, 200)
-  t.is(b.data, 'b')
+  t.is(b.data, 'a')
 
-  const c = await request(serve, 'b.txt', { version: 2 })
-  t.is(c.status, 404)
-  t.is(c.data, '')
+  const c = await request(serve, 'b.txt', { version: 3 })
+  t.is(c.status, 200)
+  t.is(c.data, 'b')
+
+  const d = await request(serve, 'b.txt', { version: 2 })
+  t.is(d.status, 404)
+  t.is(d.data, '')
 })
 
 test('file server does not wait for reqs to finish before closing', async function (t) {
