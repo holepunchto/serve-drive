@@ -1,6 +1,6 @@
 {
   "name": "serve-drive",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "HTTP drive server for entries delivery. Auto detects types like video, images, etc",
   "main": "index.js",
   "scripts": {
