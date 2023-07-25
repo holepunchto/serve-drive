@@ -152,9 +152,9 @@ module.exports = class ServeDrive extends ReadyResource {
       return
     }
 
-    const { pathname, searchParams } = new URL(req.url, 'http://127.0.0.1')
+    const { pathname, searchParams } = parseURL(req.url)
     const filename = decodeURI(pathname)
-    let key = searchParams.get('key') // String or null
+    let key = searchParams.get('key') || null
     const version = parseInt(searchParams.get('version') || 0, 10)
 
     if (key !== null) {
@@ -238,4 +238,19 @@ function noop () {}
 function getHost (address) {
   if (!address || address === '::' || address === '0.0.0.0') return 'localhost'
   return address
+}
+
+function parseURL (url) {
+  const [pathname, query] = url.split('?')
+  const queryParams = (query || '').split('&')
+  const searchParams = new Map()
+
+  for (const params of queryParams) {
+    if (!params) continue
+
+    const [key, value] = params.split('=')
+    searchParams.set(key, value || null)
+  }
+
+  return { pathname, searchParams }
 }
