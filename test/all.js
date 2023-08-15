@@ -73,6 +73,15 @@ test('getLink reverse-proxy use case', async function (t) {
   t.is(serve.getLink('/file.txt', { https: true, host: 'www.mydrive.org:40000', version: 5 }), 'https://www.mydrive.org:40000/file.txt?version=5')
 })
 
+test('getLink encoding', async function (t) {
+  t.plan(1)
+
+  const serve = tmpServe(t)
+  await serve.ready()
+
+  t.is(serve.getLink('/file txt', { https: true, host: 'www.mydrive.org:40000', version: 5 }), 'https://www.mydrive.org:40000/file%20txt?version=5')
+})
+
 test('getLink with global address', async function (t) {
   t.plan(2)
 
