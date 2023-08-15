@@ -65,7 +65,7 @@ module.exports = class ServeDrive extends ReadyResource {
     if (opts.version) params.push('version=' + opts.version)
     const query = params.length ? ('?' + params.join('&')) : ''
 
-    return proto + '://' + host + pathname + query
+    return proto + '://' + host + encodeURI(pathname) + query
   }
 
   async _driveToRequest (req, res, key, drive, filename, version) {
