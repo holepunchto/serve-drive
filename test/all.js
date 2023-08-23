@@ -437,16 +437,15 @@ test('rebind', async function (t) {
 })
 
 test('internal port changes for rebind - custom port', async function (t) {
-  t.plan(4)
+  t.plan(5)
 
   const serve = tmpServe(t, { port: 1234 })
   await serve.ready()
+  t.is(serve.address().port, serve.port)
 
   const serve2 = tmpServe(t, { port: 1234 })
   await serve2.ready()
-
-  t.is(serve.port, 1234)
-  t.not(serve2.port, 1234)
+  t.is(serve2.address().port, serve2.port)
 
   await serve.close()
 
@@ -455,14 +454,17 @@ test('internal port changes for rebind - custom port', async function (t) {
   const after = serve2.port
 
   t.is(before, after)
+
   t.not(serve2.port, 1234)
+  t.is(serve2.address().port, serve2.port)
 })
 
-test('rebind should reuse previous random port', async function (t) {
-  t.plan(1)
+test('internal port changes for rebind - zero port', async function (t) {
+  t.plan(2)
 
   const serve = tmpServe(t, { port: 0 })
   await serve.ready()
+  t.is(serve.address().port, serve.port)
 
   const before = serve.address().port
   await serve.rebind()
