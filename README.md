@@ -85,6 +85,12 @@ Generates the full API link to a file.
 }
 ```
 
+#### `await serve.rebind()`
+
+Will close and open again the server.
+
+If `anyPort` is used and the `port` in the constructor was already in use, then the new random port will be used when rebinding.
+
 ## License
 
 Apache-2.0
