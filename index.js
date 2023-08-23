@@ -32,6 +32,7 @@ module.exports = class ServeDrive extends ReadyResource {
       if (err.code !== 'EADDRINUSE') throw err
       await listen(this.server, 0, this.host)
     }
+    this.port = this.server.address().port
   }
 
   _close () {
@@ -49,6 +50,11 @@ module.exports = class ServeDrive extends ReadyResource {
         if (--waiting === 0) resolve()
       }
     })
+  }
+
+  async rebind () {
+    await this._close()
+    await this._open()
   }
 
   address () {
