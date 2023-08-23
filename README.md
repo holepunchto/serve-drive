@@ -20,7 +20,7 @@ const serve = new ServeDrive({ get: ({ key, filename, version }) => drive })
 await serve.ready()
 console.log('Listening on http://localhost:' + serve.address().port)
 
-// Try visiting http://localhost:7000/index.html
+// Try visiting http://localhost:49833/index.html
 ```
 
 Multiple drives:
@@ -46,7 +46,7 @@ const serve = new ServeDrive({
 await serve.ready()
 console.log('Listening on http://localhost:' + serve.address().port)
 
-// Try visiting http://localhost:7000/index.html?key=<id-or-key>
+// Try visiting http://localhost:49833/index.html?key=<id-or-key>
 ```
 
 ## API
@@ -64,7 +64,7 @@ Available `options`:
 {
   async get ({ key, filename, version }) {}, // Return the drive or null
   async release ({ key, drive }) {}, // Called after finishing a request to optionally release the drive
-  port: 7000,
+  port: 49833,
   host: '0.0.0.0',
   anyPort: true,
   server: null

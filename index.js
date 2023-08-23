@@ -14,7 +14,7 @@ module.exports = class ServeDrive extends ReadyResource {
     this._getDrive = opts.get || nool
     this._releaseDrive = opts.release || noop
 
-    this.port = typeof opts.port !== 'undefined' ? Number(opts.port) : 7000
+    this.port = typeof opts.port !== 'undefined' ? Number(opts.port) : 49833
     this.host = typeof opts.host !== 'undefined' ? opts.host : null
     this.anyPort = opts.anyPort !== false
 
