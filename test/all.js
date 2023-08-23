@@ -419,3 +419,25 @@ test('file server does not wait for reqs to finish before closing', async functi
 
   t.is(released, 1)
 })
+
+test('internal port changes for re-bind', async function (t) {
+  t.plan(4)
+
+  const serve = tmpServe(t, { port: 1234 })
+  await serve.ready()
+
+  const serve2 = tmpServe(t, { port: 1234 })
+  await serve2.ready()
+
+  t.is(serve.port, 1234)
+  t.not(serve2.port, 1234)
+
+  await serve.close()
+
+  const before = serve2.port
+  await serve2.rebind()
+  const after = serve2.port
+
+  t.is(before, after)
+  t.not(serve2.port, 1234)
+})
