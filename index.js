@@ -24,11 +24,7 @@ module.exports = class ServeDrive extends ReadyResource {
     this.server.on('request', this._onrequest.bind(this))
   }
 
-  _open () {
-    return this._bind()
-  }
-
-  async _bind () {
+  async _open () {
     try {
       await listen(this.server, this.port, this.host)
     } catch (err) {
@@ -57,9 +53,8 @@ module.exports = class ServeDrive extends ReadyResource {
   }
 
   async rebind () {
-    for (const c of this.connections) c.destroy()
-    await new Promise(resolve => this.server.close(resolve))
-    await this._bind()
+    await this._close()
+    await this._open()
   }
 
   address () {
