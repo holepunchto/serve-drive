@@ -420,7 +420,23 @@ test('file server does not wait for reqs to finish before closing', async functi
   t.is(released, 1)
 })
 
-test('internal port changes for re-bind', async function (t) {
+test('rebind', async function (t) {
+  t.plan(2)
+
+  const drive = tmpHyperdrive(t)
+  await drive.put('/file.txt', 'hello')
+
+  const serve = tmpServe(t, { get: () => drive })
+  await serve.ready()
+
+  await serve.rebind()
+
+  const a = await request(serve, 'file.txt')
+  t.is(a.status, 200)
+  t.is(a.data, 'hello')
+})
+
+test('internal port changes for rebind - custom port', async function (t) {
   t.plan(4)
 
   const serve = tmpServe(t, { port: 1234 })
