@@ -27,6 +27,7 @@ module.exports = class ServeDrive extends ReadyResource {
   async _open () {
     try {
       await listen(this.server, this.port, this.host)
+      this.port = this.server.address().port
     } catch (err) {
       if (!this.anyPort) throw err
       if (err.code !== 'EADDRINUSE') throw err
