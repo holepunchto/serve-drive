@@ -24,13 +24,18 @@ module.exports = class ServeDrive extends ReadyResource {
     this.server.on('request', this._onrequest.bind(this))
   }
 
-  async _open () {
+  _open () {
+    return this._bind()
+  }
+
+  async _bind () {
     try {
       await listen(this.server, this.port, this.host)
     } catch (err) {
       if (!this.anyPort) throw err
       if (err.code !== 'EADDRINUSE') throw err
       await listen(this.server, 0, this.host)
+      this.port = this.server.address().port
     }
   }
 
@@ -49,6 +54,12 @@ module.exports = class ServeDrive extends ReadyResource {
         if (--waiting === 0) resolve()
       }
     })
+  }
+
+  async rebind () {
+    for (const c of this.connections) c.destroy()
+    await new Promise(resolve => this.server.close(resolve))
+    await this._bind()
   }
 
   address () {
