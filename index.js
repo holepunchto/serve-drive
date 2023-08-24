@@ -250,8 +250,12 @@ function listen (server, port, address) {
     server.on('listening', done)
     server.on('error', done)
 
-    if (address) server.listen(port, address)
-    else server.listen(port)
+    try {
+      if (address) server.listen(port, address)
+      else server.listen(port)
+    } catch (err) {
+      done(err) // windows seems to throw here sometimes..., must be a node bug
+    }
 
     function done (err) {
       server.off('listening', done)
