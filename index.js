@@ -31,7 +31,6 @@ module.exports = class ServeDrive extends ReadyResource {
       await listen(this.server, this.port, this.host)
     } catch (err) {
       if (!this.anyPort) throw err
-      if (err.code !== 'EADDRINUSE') throw err
       await listen(this.server, 0, this.host)
     }
     this.port = this.server.address().port
@@ -250,12 +249,8 @@ function listen (server, port, address) {
     server.on('listening', done)
     server.on('error', done)
 
-    try {
-      if (address) server.listen(port, address)
-      else server.listen(port)
-    } catch (err) {
-      done(err) // windows seems to throw here sometimes..., must be a node bug
-    }
+    if (address) server.listen(port, address)
+    else server.listen(port)
 
     function done (err) {
       server.off('listening', done)
