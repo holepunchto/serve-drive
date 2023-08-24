@@ -21,9 +21,7 @@ module.exports = class ServeDrive extends ReadyResource {
 
     this.suspended = false
     this.connections = new Set()
-    this.server = opts.server || http.createServer()
-    this.server.on('connection', this._onconnection.bind(this))
-    this.server.on('request', this._onrequest.bind(this))
+    this.server = this._createServer(opts.server || null)
   }
 
   async _open () {
@@ -38,19 +36,25 @@ module.exports = class ServeDrive extends ReadyResource {
 
   async _close () {
     if (this._resuming) await this._resuming
-    await this._suspend()
+    await this._suspend(true)
   }
 
-  _suspend () {
+  _suspend (alsoServer) {
     return new Promise(resolve => {
       let waiting = 1
-      this.server.close(onclose)
+
+      if (alsoServer) {
+        this.server.close(onclose)
+        waiting++
+      }
 
       for (const c of this.connections) {
         waiting++
         c.on('close', onclose)
         c.destroy()
       }
+
+      onclose() // clear the initial one
 
       function onclose () {
         if (--waiting === 0) resolve()
@@ -61,7 +65,8 @@ module.exports = class ServeDrive extends ReadyResource {
   async suspend () {
     if (this.opened === false) await this.ready()
     if (this.suspended) return
-    // atm do nothing, in the future mb support releasing the port early etc
+    await this._suspend(false) // kill all pending connections, but keep server to try to keep the port...
+    if (this.suspended) return // in case of parallel call for some reason
     this.suspended = true
     this.emit('suspend')
   }
@@ -77,7 +82,8 @@ module.exports = class ServeDrive extends ReadyResource {
   }
 
   async _resume () {
-    await this._suspend()
+    await this._suspend(true)
+    this.server = this._createServer(null)
     await this._open()
   }
 
@@ -168,6 +174,13 @@ module.exports = class ServeDrive extends ReadyResource {
 
     const rs = snapshot.createReadStream(filename, { start, length })
     await pipelinePromise(rs, res)
+  }
+
+  _createServer (server) {
+    if (!server) server = http.createServer()
+    server.on('connection', this._onconnection.bind(this))
+    server.on('request', this._onrequest.bind(this))
+    return server
   }
 
   _onconnection (socket) {
