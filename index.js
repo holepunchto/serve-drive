@@ -13,11 +13,13 @@ module.exports = class ServeDrive extends ReadyResource {
 
     this._getDrive = opts.get || nool
     this._releaseDrive = opts.release || noop
+    this._resuming = null
 
     this.port = typeof opts.port !== 'undefined' ? Number(opts.port) : 49833
     this.host = typeof opts.host !== 'undefined' ? opts.host : null
     this.anyPort = opts.anyPort !== false
 
+    this.suspended = false
     this.connections = new Set()
     this.server = opts.server || http.createServer()
     this.server.on('connection', this._onconnection.bind(this))
@@ -35,7 +37,12 @@ module.exports = class ServeDrive extends ReadyResource {
     this.port = this.server.address().port
   }
 
-  _close () {
+  async _close () {
+    if (this._resuming) await this._resuming
+    await this._suspend()
+  }
+
+  _suspend () {
     return new Promise(resolve => {
       let waiting = 1
       this.server.close(onclose)
@@ -52,8 +59,26 @@ module.exports = class ServeDrive extends ReadyResource {
     })
   }
 
-  async rebind () {
-    await this._close()
+  async suspend () {
+    if (this.opened === false) await this.ready()
+    if (this.suspended) return
+    // atm do nothing, in the future mb support releasing the port early etc
+    this.suspended = true
+    this.emit('suspend')
+  }
+
+  async resume () {
+    if (!this.suspended || this.closing) return
+    if (this._resuming === null) this._resuming = this._resume()
+    await this._resuming
+    if (!this.suspended) return
+    this._resuming = null
+    this.suspended = false
+    this.emit('resume')
+  }
+
+  async _resume () {
+    await this._suspend()
     await this._open()
   }
 

@@ -85,11 +85,13 @@ Generates the full API link to a file.
 }
 ```
 
-#### `await serve.rebind()`
+#### `await serve.suspend()`
 
-Will close and open again the server.
+Let the instance know you wanna suspend so it can make relevant changes.
 
-If `anyPort` is used and the `port` in the constructor was already in use, then the new random port will be used when rebinding.
+#### `await serve.resume()`
+
+Let the instance know you wanna resume from suspension. Will rebind the server etc.
 
 ## License
 

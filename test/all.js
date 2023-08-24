@@ -420,7 +420,7 @@ test('file server does not wait for reqs to finish before closing', async functi
   t.is(released, 1)
 })
 
-test('rebind', async function (t) {
+test('suspend', async function (t) {
   t.plan(2)
 
   const drive = tmpHyperdrive(t)
@@ -429,14 +429,15 @@ test('rebind', async function (t) {
   const serve = tmpServe(t, { get: () => drive })
   await serve.ready()
 
-  await serve.rebind()
+  await serve.suspend()
+  await serve.resume()
 
   const a = await request(serve, 'file.txt')
   t.is(a.status, 200)
   t.is(a.data, 'hello')
 })
 
-test('internal port changes for rebind - custom port', async function (t) {
+test('internal port changes for suspend - custom port', async function (t) {
   t.plan(5)
 
   const serve = tmpServe(t, { port: 1234 })
@@ -450,7 +451,8 @@ test('internal port changes for rebind - custom port', async function (t) {
   await serve.close()
 
   const before = serve2.port
-  await serve2.rebind()
+  await serve2.suspend()
+  await serve2.resume()
   const after = serve2.port
 
   t.is(before, after)
@@ -459,7 +461,7 @@ test('internal port changes for rebind - custom port', async function (t) {
   t.is(serve2.address().port, serve2.port)
 })
 
-test('internal port changes for rebind - zero port', async function (t) {
+test('internal port changes for suspend - zero port', async function (t) {
   t.plan(2)
 
   const serve = tmpServe(t, { port: 0 })
@@ -467,7 +469,8 @@ test('internal port changes for rebind - zero port', async function (t) {
   t.is(serve.address().port, serve.port)
 
   const before = serve.address().port
-  await serve.rebind()
+  await serve.suspend()
+  await serve.resume()
   const after = serve.address().port
 
   t.is(before, after)
