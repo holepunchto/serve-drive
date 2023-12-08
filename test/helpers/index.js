@@ -23,6 +23,14 @@ async function request (serve, path, opts) {
       }
     })
 
+    const msTimeout = 500
+    req.setTimeout(msTimeout,
+      () => {
+        reject(new Error('Request timeout'))
+        req.destroy()
+      }
+    )
+
     req.on('error', reject)
     req.on('response', function (res) {
       let buf = ''
