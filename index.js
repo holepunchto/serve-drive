@@ -47,6 +47,7 @@ module.exports = class ServeDrive extends ReadyResource {
         this.server.close(onclose)
         waiting++
       }
+      this.server.unref()
 
       for (const c of this.connections) {
         waiting++
@@ -76,6 +77,7 @@ module.exports = class ServeDrive extends ReadyResource {
     if (this._resuming === null) this._resuming = this._resume()
     await this._resuming
     if (!this.suspended) return
+    this.server.ref()
     this._resuming = null
     this.suspended = false
     this.emit('resume')
