@@ -1,6 +1,5 @@
 const test = require('brittle')
 const { request, tmpServe, tmpHyperdrive, tmpLocaldrive } = require('./helpers/index.js')
-const axios = require('axios')
 const RAM = require('random-access-memory')
 const Hyperdrive = require('hyperdrive')
 const Corestore = require('corestore')
@@ -159,8 +158,8 @@ test('checkout query param (hyperdrive)', async function (t) {
   t.is(res2.status, 200)
   t.is(res2.data, 'a')
 
-  // Hangs until future version found
-  await t.exception(axios.get(serve.getLink('/file.txt', { version: 100 }), { timeout: 500 }), /timeout/)
+  // Hangs until future version found (but it should still release the drive on abort)
+  await t.exception(request(serve, '/file.txt', { version: 100 }), /timeout/)
 })
 
 test('can handle a non-ready drive', async function (t) {
