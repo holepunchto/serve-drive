@@ -20,7 +20,7 @@ module.exports = {
 
 async function request (serve, path, opts) {
   const link = serve.getLink(path, opts)
-  return axios.get(link, { validateStatus: false, httpAgent: new http.Agent({ keepAlive: false }) })
+  return axios.get(link, { validateStatus: false, httpAgent: new http.Agent({ keepAlive: true }) })
 }
 
 function tmpServe (t, opts) {
