@@ -6,6 +6,7 @@ const Corestore = require('corestore')
 const Hyperdrive = require('hyperdrive')
 const Localdrive = require('localdrive')
 const axios = require('axios')
+const http = require('http')
 const ServeDrive = require('../../index.js')
 
 module.exports = {
@@ -18,7 +19,7 @@ module.exports = {
 
 async function request (serve, path, opts) {
   const link = serve.getLink(path, opts)
-  return axios.get(link, { validateStatus: false })
+  return axios.get(link, { validateStatus: false, httpAgent: new http.Agent({ keepAlive: false }) })
 }
 
 function tmpServe (t, opts) {
