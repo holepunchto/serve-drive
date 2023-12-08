@@ -158,7 +158,7 @@ test('checkout query param (hyperdrive)', async function (t) {
   t.is(res2.status, 200)
   t.is(res2.data, 'a')
 
-  // Hangs until future version found (request helper includes timeout logic)
+  // Hangs until future version found (but it should still release the drive on abort)
   await t.exception(request(serve, '/file.txt', { version: 100 }), /timeout/)
 })
 
