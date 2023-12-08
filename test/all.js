@@ -9,7 +9,7 @@ test('can get existing file from drive (default-drive pattern)', async function 
   t.plan(2 * 3)
 
   for (const isHyper of [true, false]) {
-    const drive = isHyper ? tmpHyperdrive(t) : tmpLocaldrive(t)
+    const drive = isHyper ? tmpHyperdrive(t) : await tmpLocaldrive(t)
     await drive.put('/file.txt', 'Here')
 
     let released = 0
@@ -115,7 +115,7 @@ test('404 if file not found', async function (t) {
   t.plan(2 * 3)
 
   for (const isHyper of [true, false]) {
-    const drive = isHyper ? tmpHyperdrive(t) : tmpLocaldrive(t)
+    const drive = isHyper ? tmpHyperdrive(t) : await tmpLocaldrive(t)
     await drive.ready()
 
     let released = 0
@@ -190,7 +190,7 @@ test('can handle a non-ready drive', async function (t) {
 test('checkout query param ignored for local drive', async function (t) {
   t.plan(9)
 
-  const drive = tmpLocaldrive(t)
+  const drive = await tmpLocaldrive(t)
   await drive.put('/file.txt', 'Here')
   await drive.put('/another.txt', 'Stuff')
   await drive.put('/file.txt', 'Else')
@@ -221,7 +221,7 @@ test('checkout query param ignored for local drive', async function (t) {
 test('multiple drives', async function (t) {
   t.plan(4 * 3)
 
-  const localdrive = tmpLocaldrive(t)
+  const localdrive = await tmpLocaldrive(t)
   const hyperdrive = tmpHyperdrive(t)
 
   await localdrive.put('/file.txt', 'a')
