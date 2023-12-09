@@ -191,71 +191,80 @@ module.exports = class ServeDrive extends ReadyResource {
   }
 
   async _onrequest (req, res) {
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      res.writeHead(400)
-      res.end()
-      return
-    }
-
-    const { pathname, searchParams } = parseURL(req.url)
-    const filename = decodeURI(pathname)
-    let key = searchParams.get('key') || null
-    const version = parseInt(searchParams.get('version') || 0, 10)
-
-    if (key !== null) {
-      try {
-        key = HypercoreId.decode(key)
-      } catch (err) {
-        safetyCatch(err)
+    try {
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
         res.writeHead(400)
         res.end()
         return
       }
-    }
 
-    if (Number.isNaN(version)) {
-      res.writeHead(400)
-      res.end()
-      return
-    }
+      const { pathname, searchParams } = parseURL(req.url)
+      const filename = decodeURI(pathname)
+      let key = searchParams.get('key') || null
+      const version = parseInt(searchParams.get('version') || 0, 10)
 
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      res.writeHead(400)
-      res.end()
-      return
-    }
-
-    let drive = null
-    let error = null
-
-    try {
-      drive = await this._getDrive({ key, filename, version })
-
-      if (!this.closing) {
-        await this._driveToRequest(req, res, key, drive, filename, version)
+      if (key !== null) {
+        try {
+          key = HypercoreId.decode(key)
+        } catch (err) {
+          safetyCatch(err)
+          res.writeHead(400)
+          res.end()
+          return
+        }
       }
+
+      if (Number.isNaN(version)) {
+        res.writeHead(400)
+        res.end()
+        return
+      }
+
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        res.writeHead(400)
+        res.end()
+        return
+      }
+
+      let drive = null
+      let error = null
+
+      try {
+        drive = await this._getDrive({ key, filename, version })
+
+        if (!this.closing) {
+          await this._driveToRequest(req, res, key, drive, filename, version)
+        }
+      } catch (e) {
+        safetyCatch(e)
+        error = e
+      }
+
+      try {
+        if (drive !== null) await this._releaseDrive({ key, drive })
+      } catch (e) {
+        safetyCatch(e)
+        // Can technically overwrite the prev error, but we are ok with that as these
+        // are for simple reporting anyway and this is the important one.
+        error = e
+      }
+
+      if (this.closing || error === null) return
+
+      if (!res.headersSent) {
+        res.writeHead(500)
+        res.end()
+      }
+
+      this.emit('request-error', error)
     } catch (e) {
-      safetyCatch(e)
-      error = e
-    }
-
-    try {
-      if (drive !== null) await this._releaseDrive({ key, drive })
-    } catch (e) {
-      safetyCatch(e)
-      // Can technically overwrite the prev error, but we are ok with that as these
-      // are for simple reporting anyway and this is the important one.
-      error = e
-    }
-
-    if (this.closing || error === null) return
-
-    if (!res.headersSent) {
       res.writeHead(500)
       res.end()
-    }
 
-    this.emit('request-error', error)
+      // TODO: either of these 2 lines:
+      // throw new Error(e)
+      // this.emit('request-error', e)
+    }
   }
 }
 
