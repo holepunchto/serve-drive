@@ -3,6 +3,15 @@
   "version": "5.0.5",
   "description": "HTTP drive server for entries delivery. Auto detects types like video, images, etc",
   "main": "index.js",
+  "files": [
+    "index.js"
+  ],
+  "imports": {
+    "http": {
+      "bare": "bare-http1",
+      "default": "http"
+    }
+  },
   "scripts": {
     "test": "standard && brittle test/*.js"
   },
@@ -25,9 +34,12 @@
     "standard": "^17.0.0",
     "test-tmp": "^1.0.2"
   },
+  "optionalDependencies": {
+    "bare-http1": "^2.0.3"
+  },
   "dependencies": {
+    "get-mime-type": "^1.0.0",
     "hypercore-id-encoding": "^1.0.2",
-    "mime-types": "^2.1.35",
     "range-parser": "^1.2.1",
     "ready-resource": "^1.0.0",
     "safety-catch": "^1.0.2",

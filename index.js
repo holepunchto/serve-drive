@@ -1,6 +1,6 @@
 const http = require('http')
 const rangeParser = require('range-parser')
-const mime = require('mime-types')
+const getMimeType = require('get-mime-type')
 const ReadyResource = require('ready-resource')
 const safetyCatch = require('safety-catch')
 const { pipelinePromise } = require('streamx')
@@ -139,7 +139,7 @@ module.exports = class ServeDrive extends ReadyResource {
       return
     }
 
-    const contentType = mime.lookup(filename)
+    const contentType = getMimeType(filename)
     res.setHeader('Content-Type', contentType === false ? 'application/octet-stream' : contentType)
     res.setHeader('Accept-Ranges', 'bytes')
 
