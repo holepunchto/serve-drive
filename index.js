@@ -103,7 +103,7 @@ module.exports = class ServeDrive extends ReadyResource {
     if (opts.version) params.push('version=' + opts.version)
     const query = params.length ? ('?' + params.join('&')) : ''
 
-    return proto + '://' + host + encodeURI(pathname) + query
+    return proto + '://' + host + encodePathName(pathname) + query
   }
 
   async _driveToRequest (req, res, key, drive, filename, version) {
@@ -198,7 +198,7 @@ module.exports = class ServeDrive extends ReadyResource {
     }
 
     const { pathname, searchParams } = parseURL(req.url)
-    const filename = decodeURI(pathname)
+    const filename = decodePathName(pathname)
     let key = searchParams.get('key') || null
     const version = parseInt(searchParams.get('version') || 0, 10)
 
@@ -298,4 +298,12 @@ function parseURL (url) {
   }
 
   return { pathname, searchParams }
+}
+
+function encodePathName (pathname) {
+  return pathname.split('/').map(encodeURIComponent).join('/')
+}
+
+function decodePathName (pathname) {
+  return pathname.split('/').map(decodeURIComponent).join('/')
 }
