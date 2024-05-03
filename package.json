@@ -34,10 +34,8 @@
     "standard": "^17.0.0",
     "test-tmp": "^1.0.2"
   },
-  "optionalDependencies": {
-    "bare-http1": "^2.0.3"
-  },
   "dependencies": {
+    "bare-http1": "^3.2.1",
     "get-mime-type": "^1.0.0",
     "hypercore-id-encoding": "^1.0.2",
     "range-parser": "^1.2.1",
