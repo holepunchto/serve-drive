@@ -35,7 +35,7 @@
     "test-tmp": "^1.0.2"
   },
   "dependencies": {
-    "bare-http1": "^3.2.1",
+    "bare-http1": "^4.0.0",
     "get-mime-type": "^1.0.0",
     "hypercore-id-encoding": "^1.0.2",
     "range-parser": "^1.2.1",
