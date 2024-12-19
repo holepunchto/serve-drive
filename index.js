@@ -114,7 +114,7 @@ module.exports = class ServeDrive extends ReadyResource {
     }
 
     const snapshot = version ? drive.checkout(version) : drive
-    if (snapshot !== drive) req.on('close', () => snapshot.close().catch(safetyCatch))
+    if (snapshot !== drive) res.on('close', () => snapshot.close().catch(safetyCatch))
 
     let entry
     try {
