@@ -16,7 +16,11 @@ module.exports = class ServeDrive extends ReadyResource {
     this._getDrive = opts.get || nool
     this._releaseDrive = opts.release || noop
     this._resuming = null
-    this._token = opts.token !== false ? b4a.toString(crypto.randomBytes(32), 'hex') : null
+    this._token = opts.token !== false
+      ? b4a.isBuffer(opts.token)
+        ? b4a.toString(opts.token, 'hex')
+        : b4a.toString(crypto.randomBytes(32), 'hex')
+      : null
 
     this.port = typeof opts.port !== 'undefined' ? Number(opts.port) : 49833
     this.host = typeof opts.host !== 'undefined' ? opts.host : null
