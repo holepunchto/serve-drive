@@ -106,6 +106,7 @@ module.exports = class ServeDrive extends ReadyResource {
     const pathname = unixPathResolve('/', path)
 
     const params = []
+    if (opts.key) params.push('roomKey=' + opts.roomKey)
     if (opts.key) params.push('key=' + opts.key)
     if (opts.version) params.push('version=' + opts.version)
     if (this._token) params.push('token=' + this._token)
@@ -208,6 +209,7 @@ module.exports = class ServeDrive extends ReadyResource {
     const { pathname, searchParams } = parseURL(req.url)
     const filename = decodePathName(pathname)
     let key = searchParams.get('key') || null
+    let roomKey = searchParams.get('roomKey') || null
     const version = parseInt(searchParams.get('version') || 0, 10)
 
     if (this._token && searchParams.get('token') !== this._token) {
@@ -219,6 +221,17 @@ module.exports = class ServeDrive extends ReadyResource {
     if (key !== null) {
       try {
         key = HypercoreId.decode(key)
+      } catch (err) {
+        safetyCatch(err)
+        res.writeHead(400)
+        res.end()
+        return
+      }
+    }
+
+    if (roomKey !== null) {
+      try {
+        roomKey = HypercoreId.decode(roomKey)
       } catch (err) {
         safetyCatch(err)
         res.writeHead(400)
@@ -243,7 +256,7 @@ module.exports = class ServeDrive extends ReadyResource {
     let error = null
 
     try {
-      drive = await this._getDrive({ key, filename, version })
+      drive = await this._getDrive({ roomKey, key, filename, version })
 
       if (!this.closing) {
         await this._driveToRequest(req, res, key, drive, filename, version)
