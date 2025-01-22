@@ -28,7 +28,7 @@ test('can get existing file from drive (default-drive pattern)', async function 
 test('getLink handles different path formats', async function (t) {
   t.plan(5)
 
-  const serve = tmpServe(t)
+  const serve = tmpServe(t, { token: false })
   await serve.ready()
 
   const base = `http://localhost:${serve.address().port}`
@@ -49,7 +49,7 @@ test('getLink handles different path formats', async function (t) {
 test('getLink optional params', async function (t) {
   t.plan(4)
 
-  const serve = tmpServe(t)
+  const serve = tmpServe(t, { token: false })
   await serve.ready()
 
   const base = `http://localhost:${serve.address().port}`
@@ -64,7 +64,7 @@ test('getLink optional params', async function (t) {
 test('getLink reverse-proxy use case', async function (t) {
   t.plan(3)
 
-  const serve = tmpServe(t)
+  const serve = tmpServe(t, { token: false })
   await serve.ready()
 
   t.is(serve.getLink('/file.txt', { host: 'www.mydrive.org' }), 'http://www.mydrive.org/file.txt')
@@ -75,7 +75,7 @@ test('getLink reverse-proxy use case', async function (t) {
 test('getLink encoding', async function (t) {
   t.plan(2)
 
-  const serve = tmpServe(t)
+  const serve = tmpServe(t, { token: false })
   await serve.ready()
 
   t.is(serve.getLink('/file txt', { https: true, host: 'www.mydrive.org:40000', version: 5 }), 'https://www.mydrive.org:40000/file%20txt?version=5')
@@ -85,11 +85,11 @@ test('getLink encoding', async function (t) {
 test('getLink with global address', async function (t) {
   t.plan(2)
 
-  const a = tmpServe(t, { host: '0.0.0.0' })
+  const a = tmpServe(t, { host: '0.0.0.0', token: false })
   await a.ready()
   t.is(a.getLink('/file.txt'), 'http://localhost:' + a.address().port + '/file.txt')
 
-  const b = tmpServe(t, { host: '::' })
+  const b = tmpServe(t, { host: '::', token: false })
   await b.ready()
   t.is(b.getLink('/file.txt'), 'http://localhost:' + b.address().port + '/file.txt')
 })

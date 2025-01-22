@@ -6,6 +6,8 @@ const safetyCatch = require('safety-catch')
 const { pipelinePromise } = require('streamx')
 const unixPathResolve = require('unix-path-resolve')
 const HypercoreId = require('hypercore-id-encoding')
+const crypto = require('hypercore-crypto')
+const b4a = require('b4a')
 
 module.exports = class ServeDrive extends ReadyResource {
   constructor (opts = {}) {
@@ -14,6 +16,7 @@ module.exports = class ServeDrive extends ReadyResource {
     this._getDrive = opts.get || nool
     this._releaseDrive = opts.release || noop
     this._resuming = null
+    this._token = opts.token !== false ? b4a.toString(crypto.randomBytes(32), 'hex') : null
 
     this.port = typeof opts.port !== 'undefined' ? Number(opts.port) : 49833
     this.host = typeof opts.host !== 'undefined' ? opts.host : null
@@ -101,6 +104,7 @@ module.exports = class ServeDrive extends ReadyResource {
     const params = []
     if (opts.key) params.push('key=' + opts.key)
     if (opts.version) params.push('version=' + opts.version)
+    if (this._token) params.push('token=' + this._token)
     const query = params.length ? ('?' + params.join('&')) : ''
 
     return proto + '://' + host + encodePathName(pathname) + query
@@ -201,6 +205,12 @@ module.exports = class ServeDrive extends ReadyResource {
     const filename = decodePathName(pathname)
     let key = searchParams.get('key') || null
     const version = parseInt(searchParams.get('version') || 0, 10)
+
+    if (this._token && searchParams.get('token') !== this._token) {
+      res.writeHead(404)
+      res.end()
+      return
+    }
 
     if (key !== null) {
       try {

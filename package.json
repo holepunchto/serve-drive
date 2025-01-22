@@ -35,8 +35,10 @@
     "test-tmp": "^1.0.2"
   },
   "dependencies": {
+    "b4a": "^1.6.7",
     "bare-http1": "^4.0.0",
     "get-mime-type": "^1.0.0",
+    "hypercore-crypto": "^3.4.2",
     "hypercore-id-encoding": "^1.0.2",
     "range-parser": "^1.2.1",
     "ready-resource": "^1.0.0",
